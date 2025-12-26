@@ -1,0 +1,9 @@
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.csproj.AssemblyReference.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\Interop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\AxInterop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.csproj.ResolveComReference.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.Form1.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\ASICamera_demo.Form2.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.Properties.Resources.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.csproj.GenerateResource.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\Debug\串口助手.csproj.CoreCompileInputs.cache

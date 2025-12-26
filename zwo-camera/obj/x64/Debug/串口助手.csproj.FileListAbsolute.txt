@@ -1,0 +1,92 @@
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\dll\x86\OpenCvSharpExtern.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\dll\x86\opencv_videoio_ffmpeg420.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\dll\x64\OpenCvSharpExtern.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\dll\x64\opencv_videoio_ffmpeg420_64.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\ASICamera2.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\串口助手 V1.1.exe.config
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\串口助手 V1.1.exe
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\串口助手 V1.1.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\EasyModbus.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\NetOceanDirect.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\EasyModbus.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.xml
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\Interop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\bin\x64\Debug\AxInterop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\Interop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\AxInterop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.csproj.ResolveComReference.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.Form1.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\ASICamera_demo.Form2.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.Properties.Resources.resources
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.csproj.GenerateResource.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.csproj.CoreCompileInputs.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手 V1.1.exe
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手 V1.1.pdb
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.csproj.AssemblyReference.cache
+C:\Users\z1002\source\repos\Y1ga\Control\串口助手\obj\x64\Debug\串口助手.csproj.Up2Date
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\dll\x86\OpenCvSharpExtern.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\dll\x86\opencv_videoio_ffmpeg420.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\dll\x64\OpenCvSharpExtern.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\dll\x64\opencv_videoio_ffmpeg420_64.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\ASICamera2.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\串口助手 V1.1.exe.config
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\串口助手 V1.1.exe
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\串口助手 V1.1.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\EasyModbus.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\NetOceanDirect.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\EasyModbus.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.WinForms.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\LiveCharts.Wpf.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Blob.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.Extensions.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.pdb
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\OpenCvSharp.UserInterface.xml
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\Interop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\bin\x64\Debug\AxInterop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.csproj.AssemblyReference.cache
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\Interop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\AxInterop.WMPLib.dll
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.csproj.ResolveComReference.cache
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.Form1.resources
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\ASICamera_demo.Form2.resources
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.Properties.Resources.resources
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.csproj.GenerateResource.cache
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.csproj.CoreCompileInputs.cache
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手.csproj.Up2Date
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手 V1.1.exe
+C:\Users\z1002\source\repos\Y1ga\0401备份\Control\串口助手\obj\x64\Debug\串口助手 V1.1.pdb

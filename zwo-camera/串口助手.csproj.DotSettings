@@ -1,0 +1,2 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/DesignerComponentManagerNuGet/DesignerToolboxNuGetState/@EntryValue">C:\Users\z1002\Desktop\Project\LED\C sharp\串口助手-工程源码\packages\OpenCvSharp4.4.2.0.20200108\lib\net40\OpenCvSharp.UserInterface.dll|</s:String></wpf:ResourceDictionary>
