@@ -1,0 +1,213 @@
+function [v_signal, t, params] = fdm_generate_signal(amplitudes, varargin)
+% FDM_GENERATE_SIGNAL 生成FDM调制的时域信号
+%
+% 语法:
+%   [v_signal, t] = fdm_generate_signal(amplitudes)
+%   [v_signal, t, params] = fdm_generate_signal(amplitudes, 'Name', Value, ...)
+%
+% 输入:
+%   amplitudes  - 各LED幅度 [N_led x 1] 或 [1 x N_led]
+%
+% 可选参数 (Name-Value pairs):
+%   'Fs'        - 采样率 (默认: 10MHz)
+%   'N'         - 采样点数 (默认: 1200)
+%   'FreqsHz'   - 各LED调制频率Hz (默认: [], 自动选择)
+%   'FreqMode'  - 频率模式: 'auto', 'legacy', 'custom' (默认: 'auto')
+%   'T'         - 采样时间，用于自动频率选择 (默认: 100e-6)
+%   'DC'        - 直流偏置 (默认: 0)
+%   'Phases'    - 各LED相位 (默认: 随机)
+%   'SNR_dB'        - 全频段白噪声信噪比dB (默认: Inf, 无噪声)
+%   'SNR_inband_dB' - 带内噪声信噪比dB, 40-250kHz (默认: Inf)
+%   'AmbientDC'     - DC环境光强度，相对信号均值的倍数 (默认: 0)
+%                     例: 10 表示DC是信号幅度的10倍
+%   'Ambient100Hz'  - 100Hz灯光干扰，相对信号均值的倍数 (默认: 0)
+%                     例: 5 表示100Hz幅度是信号幅度的5倍
+%   'Seed'          - 随机种子 (默认: 无)
+%
+% 输出:
+%   v_signal    - 时域电压信号 [1 x N]
+%   t           - 时间轴 [1 x N]
+%   params      - 使用的参数结构体
+%
+% 示例:
+%   % 自动选择频率（推荐）
+%   amps = rand(1, 12);
+%   [v, t, p] = fdm_generate_signal(amps, 'FreqMode', 'auto', 'T', 100e-6);
+%   disp(p.FreqsHz / 1e3);  % 查看选择的频率(kHz)
+%
+%   % 使用旧版固定频率
+%   [v, t] = fdm_generate_signal(amps, 'FreqMode', 'legacy');
+%
+%   % 自定义频率
+%   freqs = [100, 150, 200] * 1e3;
+%   [v, t] = fdm_generate_signal([0.1, 0.2, 0.3], 'FreqsHz', freqs);
+%
+% 作者: Claude
+% 日期: 2024-12
+
+    % 旧版默认频率 (兼容)
+    LEGACY_FREQS_KHZ = [118, 128, 138, 148, 158, 168, 178, 208, 218, 228];
+    
+    % 解析输入参数
+    p = inputParser;
+    addRequired(p, 'amplitudes', @isnumeric);
+    addParameter(p, 'Fs', 10e6, @isnumeric);
+    addParameter(p, 'N', [], @isnumeric);  % 默认由T和Fs计算
+    addParameter(p, 'FreqsHz', [], @isnumeric);
+    addParameter(p, 'FreqMode', 'auto', @ischar);  % 'auto', 'legacy', 'custom'
+    addParameter(p, 'T', 100e-6, @isnumeric);  % 采样时间
+    addParameter(p, 'DC', 0, @isnumeric);
+    addParameter(p, 'Phases', [], @isnumeric);
+    addParameter(p, 'SNR_dB', Inf, @isnumeric);        % 白噪声（全频段）
+    addParameter(p, 'SNR_inband_dB', Inf, @isnumeric); % 带内噪声
+    addParameter(p, 'NoiseMode', 'white', @ischar);    % 'white', 'inband', 'ambient'
+    addParameter(p, 'AmbientDC', 0, @isnumeric);       % DC环境光强度
+    addParameter(p, 'Ambient100Hz', 0, @isnumeric);    % 100Hz灯光干扰强度
+    addParameter(p, 'Seed', [], @isnumeric);
+    parse(p, amplitudes, varargin{:});
+    
+    opts = p.Results;
+    amplitudes = opts.amplitudes(:)';  % 确保是行向量
+    num_led = length(amplitudes);
+    Fs = opts.Fs;
+    T = opts.T;
+    
+    %% 确定采样点数N
+    if isempty(opts.N)
+        % 由T和Fs计算
+        N = round(Fs * T);
+    else
+        N = opts.N;
+        T = N / Fs;  % 更新实际采样时间
+    end
+    
+    %% 确定频率
+    switch lower(opts.FreqMode)
+        case 'auto'
+            % 自动选择满足约束的频率
+            if isempty(opts.FreqsHz)
+                [freqs_Hz, freq_info] = fdm_select_frequencies(num_led, 'T', T);
+            else
+                freqs_Hz = opts.FreqsHz(:)';
+            end
+            
+        case 'legacy'
+            % 使用旧版固定频率
+            freqs_Hz = LEGACY_FREQS_KHZ(1:min(num_led, length(LEGACY_FREQS_KHZ))) * 1000;
+            
+        case 'custom'
+            % 使用用户指定的频率
+            if isempty(opts.FreqsHz)
+                error('FreqMode=''custom'' 时必须指定 FreqsHz');
+            end
+            freqs_Hz = opts.FreqsHz(:)';
+            
+        otherwise
+            error('未知的 FreqMode: %s', opts.FreqMode);
+    end
+    
+    % 验证频率数量
+    if length(freqs_Hz) < num_led
+        error('频率数量(%d)少于幅度数量(%d)', length(freqs_Hz), num_led);
+    elseif length(freqs_Hz) > num_led
+        freqs_Hz = freqs_Hz(1:num_led);  % 截取
+    end
+    
+    % 设置随机种子
+    if ~isempty(opts.Seed)
+        rng(opts.Seed);
+    end
+    
+    % 生成相位
+    if isempty(opts.Phases)
+        phases = 2 * pi * rand(1, num_led);
+    else
+        phases = opts.Phases(:)';
+    end
+    
+    % 时间轴
+    dt = 1 / Fs;
+    t = (0:N-1) * dt;
+    
+    % 生成信号: v(t) = DC + Σ a_i * sin(2πf_i*t + φ_i)
+    v_signal = opts.DC * ones(1, N);
+    for i = 1:num_led
+        v_signal = v_signal + amplitudes(i) * sin(2*pi*freqs_Hz(i)*t + phases(i));
+    end
+    
+    % 添加噪声
+    noise_total = zeros(1, N);
+    signal_mean = mean(abs(amplitudes));  % 信号幅度均值，用于归一化
+    
+    % === 带外噪声 (环境光) ===
+    % DC环境光 - AmbientDC表示DC是信号的多少倍
+    if opts.AmbientDC > 0
+        dc_amplitude = opts.AmbientDC * signal_mean;
+        noise_total = noise_total + dc_amplitude;
+    end
+    
+    % 100Hz灯光干扰 - 在短采样时间内近似为缓变DC
+    % 注意：T=100μs时，100Hz只完成0.01个周期，近似为常数
+    if opts.Ambient100Hz > 0
+        hz100_amplitude = opts.Ambient100Hz * signal_mean;
+        % 100Hz在采样窗口内的相位（假设随机起始相位）
+        phase_100hz = 2 * pi * rand();
+        % 在短时间窗口内，100Hz近似为DC偏移
+        % 实际值 = amplitude * sin(phase) ≈ 常数
+        avg_offset = hz100_amplitude * sin(phase_100hz);
+        noise_total = noise_total + avg_offset;
+        % 如果采样时间足够长，才加入正弦波动
+        if T > 0.01  % T > 10ms 时才有完整周期
+            noise_total = noise_total + hz100_amplitude * sin(2*pi*100*t + phase_100hz) - avg_offset;
+        end
+    end
+    
+    % === 全频段白噪声 (SNR定义) ===
+    if ~isinf(opts.SNR_dB)
+        signal_power = var(v_signal - opts.DC);
+        noise_power = signal_power / (10^(opts.SNR_dB/10));
+        noise_white = sqrt(noise_power) * randn(1, N);
+        noise_total = noise_total + noise_white;
+    end
+    
+    % === 带内噪声 (SNR定义, 40-250kHz) ===
+    if ~isinf(opts.SNR_inband_dB)
+        signal_power = var(v_signal - opts.DC);
+        noise_power = signal_power / (10^(opts.SNR_inband_dB/10));
+        
+        % 生成带限噪声
+        noise_inband = sqrt(noise_power) * randn(1, N);
+        f_low = 40e3 / (Fs/2);
+        f_high = min(250e3 / (Fs/2), 0.99);
+        if f_high > f_low
+            [b, a] = butter(4, [f_low, f_high], 'bandpass');
+            noise_inband = filter(b, a, noise_inband);
+            noise_inband = noise_inband * sqrt(noise_power / var(noise_inband));
+        end
+        noise_total = noise_total + noise_inband;
+    end
+    
+    v_signal = v_signal + noise_total;
+    
+    % 返回参数
+    params.Fs = Fs;
+    params.N = N;
+    params.T = T;
+    params.dt = dt;
+    params.df = Fs / N;
+    params.FreqsHz = freqs_Hz;
+    params.FreqsKHz = freqs_Hz / 1000;
+    params.FreqMode = opts.FreqMode;
+    params.DC = opts.DC;
+    params.Phases = phases;
+    params.SNR_dB = opts.SNR_dB;
+    params.SNR_inband_dB = opts.SNR_inband_dB;
+    params.AmbientDC = opts.AmbientDC;
+    params.Ambient100Hz = opts.Ambient100Hz;
+    params.amplitudes = amplitudes;
+    
+    % 如果是自动模式，附加频率选择信息
+    if strcmpi(opts.FreqMode, 'auto') && exist('freq_info', 'var')
+        params.freq_info = freq_info;
+    end
+end
