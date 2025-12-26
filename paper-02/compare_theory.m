@@ -7,11 +7,11 @@
 clear; clc; close all;
 
 %% ==================== 配置 ====================
-base_path = 'E:/';
+base_path = 'X:\Github\My-Repository\My-Graduation\paper-02\data\1212\';
 
 % 文件路径
 white_file = [base_path, '新建文件47.csv'];   % 白板参考
-sample_file = [base_path, '新建文件46.csv'];  % 色卡样本测量
+sample_file = [base_path, '新建文件50.csv'];  % 色卡样本测量
 
 % 12个LED目标频率 (kHz)
 all_freqs = [118, 128, 138, 148, 158, 168, 178, 188, 198, 208, 218, 228];
@@ -21,10 +21,10 @@ working_leds = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12];
 num_working = length(working_leds);
 
 % 加载LED光谱矩阵 A0 [12 x 31]
-A0_full = load_mat("led_0711", "gt");  % 完整的12x31矩阵
+A0_full = load_mat("led_0711", "X:\Github\My-Repository\My-Graduation\data\mat")';  % 完整的12x31矩阵
 
 % 加载色卡真值
-colorchecker = load_mat("colorchecker", "gt");
+colorchecker = load_mat("colorchecker", "X:\Github\My-Repository\My-Graduation\data\mat");
 x_gt = colorchecker(:, 5);  % 第5个色块的光谱 [31 x 1]
 
 % 波长范围
@@ -133,7 +133,7 @@ fprintf('步骤5: 归一化比较\n');
 fprintf('%s\n', repmat('=', 1, 65));
 
 % 归一化函数 (L1范数)
-norm_1 = @(x) x / sum(abs(x));
+norm_1 = @(x) x / max(x,[],'all');
 
 y_theory_norm = norm_1(y_theory);
 y_measured_norm = norm_1(y_measured);
@@ -150,142 +150,14 @@ for i = 1:num_working
     fprintf('  %2d   %4dkHz    %.4f        %.4f       %+.4f\n', ...
             led_idx, all_freqs(led_idx), y_theory_norm(i), y_measured_norm(i), diff_norm);
 end
-
-%% ==================== 统计结果 ====================
-fprintf('\n%s\n', repmat('=', 1, 65));
-fprintf('步骤6: 统计结果\n');
-fprintf('%s\n', repmat('=', 1, 65));
-
-% 绝对值统计
-rmse = sqrt(mean(errors.^2));
-mae = mean(abs(errors));
-fprintf('\n【绝对值比较】\n');
-fprintf('  RMSE: %.4f\n', rmse);
-fprintf('  MAE: %.4f\n', mae);
-fprintf('  平均相对误差: %.1f%%\n', mean(rel_errors));
-fprintf('  最大相对误差: %.1f%%\n', max(rel_errors));
-
-% 归一化统计
-corr_matrix = corrcoef(y_theory_norm, y_measured_norm);
-correlation = corr_matrix(1, 2);
-
-cos_sim = dot(y_theory_norm, y_measured_norm) / ...
-          (norm(y_theory_norm) * norm(y_measured_norm));
-
-rmse_norm = sqrt(mean((y_theory_norm - y_measured_norm).^2));
-
-fprintf('\n【归一化比较】\n');
-fprintf('  相关系数: %.4f\n', correlation);
-fprintf('  余弦相似度: %.4f\n', cos_sim);
-fprintf('  归一化RMSE: %.4f\n', rmse_norm);
-fprintf('  平均归一化误差: %.4f\n', mean(norm_errors));
-
-% 判断结果
-fprintf('\n');
-if correlation > 0.95 && mean(norm_errors) < 0.03
-    fprintf('🎉 理论值与实测值高度一致！\n');
-elseif correlation > 0.85 && mean(norm_errors) < 0.06
-    fprintf('⚠️ 基本一致，存在一定偏差\n');
-else
-    fprintf('❌ 偏差较大，请检查系统\n');
-end
-
-%% ==================== 绘图 ====================
-figure('Position', [50, 50, 1400, 900], 'Color', 'w');
-
-% 子图1: 绝对值对比
-subplot(2, 3, 1);
-bar_data = [y_theory, y_measured];
-b = bar(bar_data);
-b(1).FaceColor = [0.3, 0.6, 0.9];
-b(2).FaceColor = [0.9, 0.4, 0.3];
-set(gca, 'XTick', 1:num_working);
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%d', all_freqs(working_leds(x))), 1:num_working, 'UniformOutput', false));
-xtickangle(45);
-xlabel('Frequency (kHz)');
-ylabel('Amplitude');
-title('Theory vs Measured (Absolute)');
-legend('Theory', 'Measured', 'Location', 'best');
-grid on;
-
-% 子图2: 归一化对比
-subplot(2, 3, 2);
-plot(1:num_working, y_theory_norm, 'b-o', 'LineWidth', 2, 'MarkerSize', 8);
+%% 
+figure;
+plot(y_theory_norm);
 hold on;
-plot(1:num_working, y_measured_norm, 'r-s', 'LineWidth', 2, 'MarkerSize', 8);
-hold off;
-set(gca, 'XTick', 1:num_working);
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%d', all_freqs(working_leds(x))), 1:num_working, 'UniformOutput', false));
-xtickangle(45);
-xlabel('Frequency (kHz)');
-ylabel('Normalized Value');
-title(sprintf('Normalized Comparison (Corr: %.4f)', correlation));
-legend('Theory', 'Measured', 'Location', 'best');
-grid on;
+plot(y_measured_norm);
+legend('theory', 'measure');
 
-% 子图3: 散点图
-subplot(2, 3, 3);
-scatter(y_theory_norm, y_measured_norm, 80, 'filled');
-hold on;
-max_val = max([y_theory_norm; y_measured_norm]) * 1.1;
-plot([0, max_val], [0, max_val], 'k--', 'LineWidth', 1.5);
-hold off;
-xlabel('Theory (Normalized)');
-ylabel('Measured (Normalized)');
-title(sprintf('Correlation: %.4f', correlation));
-axis equal;
-xlim([0, max_val]);
-ylim([0, max_val]);
-grid on;
 
-% 子图4: 相对误差
-subplot(2, 3, 4);
-bar(rel_errors);
-hold on;
-yline(20, 'g--', 'LineWidth', 1.5, 'Label', '20%');
-yline(50, 'r--', 'LineWidth', 1.5, 'Label', '50%');
-hold off;
-set(gca, 'XTick', 1:num_working);
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%d', all_freqs(working_leds(x))), 1:num_working, 'UniformOutput', false));
-xtickangle(45);
-xlabel('Frequency (kHz)');
-ylabel('Relative Error (%)');
-title(sprintf('Relative Error (Mean: %.1f%%)', mean(rel_errors)));
-grid on;
-
-% 子图5: 归一化误差
-subplot(2, 3, 5);
-bar(norm_errors);
-set(gca, 'XTick', 1:num_working);
-set(gca, 'XTickLabel', arrayfun(@(x) sprintf('%d', all_freqs(working_leds(x))), 1:num_working, 'UniformOutput', false));
-xtickangle(45);
-xlabel('Frequency (kHz)');
-ylabel('Normalized Error');
-title(sprintf('Normalized Error (Mean: %.4f)', mean(norm_errors)));
-grid on;
-
-% 子图6: 色卡真值光谱
-subplot(2, 3, 6);
-plot(wavelengths, x_gt, 'k-', 'LineWidth', 2);
-xlabel('Wavelength (nm)');
-ylabel('Reflectance');
-title('Ground Truth Spectrum (Color Checker #5)');
-grid on;
-
-sgtitle(sprintf('Theory vs Measured - Correlation: %.4f, Mean Rel Error: %.1f%%', ...
-        correlation, mean(rel_errors)), 'FontSize', 14, 'FontWeight', 'bold');
-
-%% ==================== 保存结果 ====================
-output_png = fullfile(base_path, 'theory_vs_measured.png');
-saveas(gcf, output_png);
-fprintf('\n图片已保存: %s\n', output_png);
-
-output_mat = fullfile(base_path, 'theory_vs_measured.mat');
-save(output_mat, 'y_theory', 'y_measured', 'y_theory_norm', 'y_measured_norm', ...
-     'errors', 'rel_errors', 'correlation', 'working_leds', 'all_freqs', 'A', 'x_gt');
-fprintf('数据已保存: %s\n', output_mat);
-
-fprintf('\n分析完成!\n');
 
 %% ==================== 辅助函数 ====================
 function [amplitudes, df] = extract_freq_amplitudes(csv_file, target_freqs)
@@ -320,10 +192,3 @@ function [amplitudes, df] = extract_freq_amplitudes(csv_file, target_freqs)
     end
 end
 
-function data = load_mat(filename, varname)
-    % 加载MAT文件中的变量
-    % 需要你根据实际情况修改路径
-    filepath = ['E:/', filename, '.mat'];
-    loaded = load(filepath, varname);
-    data = loaded.(varname);
-end
