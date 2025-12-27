@@ -1,6 +1,6 @@
 """
 FDM 端到端模型测试与可视化
-支持多种测试模式: test_dataset, kaist_2d, colorchecker, custom
+支持多种测试模式: test_dataset, kaist_2d, 50scenes_2d, colorchecker, custom
 """
 
 import os
@@ -25,28 +25,32 @@ CONFIG = {
     "fdm_data_path": r"W:\Github\My-Repository\My-Graduation\paper-02\generate_dataset\fdm_e2e_cave100k_kaist50k_noise5pct_aug.mat",
     
     # ============ 测试模式 ============
-    # 可选: "test_dataset", "kaist_2d", "colorchecker", "custom"
-    "test_mode": "colorchecker",
+    # 可选: "test_dataset", "kaist_2d", "50scenes_2d", "colorchecker", "custom"
+    "test_mode": "50scenes_2d",
     
     # --- test_dataset 模式参数 ---
     # 使用 fdm_data_path 中的 test 集
     
     # --- kaist_2d 模式参数 ---
     "kaist_2d_path": r"W:\dataset\benchmark\merged_data\KAIST_2D.mat",
-    "scene_idx": 0,  # 场景索引 (0-29)
+    "kaist_scene_idx": 0,  # 场景索引 (0-29)
+    
+    # --- 50scenes_2d 模式参数 ---
+    "scenes50_2d_path": r"W:\dataset\benchmark\merged_data\50Scenes_2D.mat",
+    "scenes50_scene_idx": 0,  # 场景索引 (0-49)
     
     # --- colorchecker 模式参数 ---
     "colorchecker_path": r"W:\Github\My-Repository\My-Graduation\paper-02\generate_dataset\colorchecker.mat",
     
     # --- custom 模式参数 ---
-    "custom_spectra_path": "",  # 自定义光谱文件路径 (.mat 或 .npy)
-    "custom_spectra_key": "spectra",  # mat 文件中的变量名
+    "custom_spectra_path": "",
+    "custom_spectra_key": "spectra",
     
     # ============ 其他参数 ============
     "output_dir": "./visualization",
     "device": "cuda" if torch.cuda.is_available() else "cpu",
-    "add_noise": True,  # 是否添加噪声 (与训练一致)
-    "noise_level": 0.05,  # 5% 平均相对误差
+    "add_noise": True,
+    "noise_level": 0.05,
 }
 
 # ============================================================
@@ -56,18 +60,15 @@ CONFIG = {
 def load_mat_auto(path, key=None):
     """自动检测 mat 文件格式并加载"""
     try:
-        # 尝试 scipy (v7 及以下)
         data = loadmat(path)
         if key and key in data:
             return data[key]
-        # 自动找最大的数组
         for k in data:
             if not k.startswith('_') and isinstance(data[k], np.ndarray):
                 if data[k].size > 100:
                     return data[k]
         return data
     except NotImplementedError:
-        # v7.3 格式用 h5py
         with h5py.File(path, 'r') as f:
             if key and key in f:
                 return np.array(f[key]).T
@@ -176,8 +177,8 @@ class FDMSignalGenerator:
         print("加载 FDM 参数...")
         with h5py.File(fdm_data_path, 'r') as f:
             config = f['config']
-            self.A0 = np.array(config['A0']).T  # [N_led, 31]
-            self.modulation_matrix = np.array(config['modulation_matrix_ds']).T  # [N_led, N_points]
+            self.A0 = np.array(config['A0']).T
+            self.modulation_matrix = np.array(config['modulation_matrix_ds']).T
             self.X_max = np.array(config['X_max']).item()
             self.max_spectrum = np.array(config['max_spectrum']).item()
             self.noise_sigma = np.array(config['noise_sigma']).item()
@@ -189,33 +190,18 @@ class FDMSignalGenerator:
         print(f"  noise_sigma: {self.noise_sigma:.4f}")
     
     def generate_signal(self, spectra, add_noise=True):
-        """
-        从光谱生成时域信号
-        
-        Args:
-            spectra: [N, 31] 光谱数据
-            add_noise: 是否添加噪声
-        
-        Returns:
-            time_signals: [N, N_points] 归一化后的时域信号
-        """
-        # 归一化光谱
+        """从光谱生成时域信号"""
         if self.max_spectrum > 1.5:
             spectra = spectra / self.max_spectrum
         
-        # 计算 LED 响应
-        I_led = (self.A0 @ spectra.T).T  # [N, N_led]
+        I_led = (self.A0 @ spectra.T).T
         
-        # 添加噪声
         if add_noise:
             noise = self.noise_sigma * np.random.randn(*I_led.shape)
             I_led = I_led * (1 + noise)
             I_led = np.maximum(I_led, 0)
         
-        # 生成时域信号
         time_signals = (I_led @ self.modulation_matrix).astype(np.float32)
-        
-        # 归一化
         time_signals = time_signals / self.X_max
         
         return time_signals, spectra
@@ -227,10 +213,7 @@ class FDMTester:
         self.device = device
         self.wavelengths = np.linspace(400, 700, 31)
         
-        # 加载模型
         self.model, self.model_config = self._load_model(model_path)
-        
-        # 加载 FDM 参数
         self.signal_generator = FDMSignalGenerator(fdm_data_path)
     
     def _load_model(self, model_path):
@@ -305,41 +288,60 @@ class FDMTester:
         print(f"  输入光谱: {spectra.shape}")
         print(f"  添加噪声: {add_noise}")
         
-        # 生成时域信号
         time_signals, gt_spectra = self.signal_generator.generate_signal(spectra, add_noise=add_noise)
         print(f"  时域信号: {time_signals.shape}")
         
-        # 预测
         pred = self.predict_batched(time_signals, batch_size=2048)
         
         return {'gt': gt_spectra, 'pred': pred, 'name': name}
     
-    def test_kaist_2d(self, kaist_2d_path, scene_idx=0, add_noise=True):
-        """测试 KAIST 2D 场景"""
+    def test_2d_scene(self, data_2d_path, scene_idx=0, dataset_name="scene", add_noise=True):
+        """测试 2D 场景 (通用方法，支持 KAIST 和 50Scenes)"""
         print(f"\n{'='*60}")
-        print(f"测试模式: kaist_2d (场景 {scene_idx})")
+        print(f"测试模式: {dataset_name}_2d (场景 {scene_idx})")
         print('='*60)
         
-        # 加载 KAIST 2D
-        kaist_2d = load_mat_auto(kaist_2d_path)
-        print(f"  KAIST 2D shape: {kaist_2d.shape}")
+        # 加载 2D 数据
+        data_2d = load_mat_auto(data_2d_path, key='data')
+        if data_2d is None:
+            data_2d = load_mat_auto(data_2d_path)
         
-        scene = kaist_2d[scene_idx]
+        print(f"  {dataset_name} 2D shape: {data_2d.shape}")
+        
+        # 检查场景索引
+        n_scenes = data_2d.shape[0]
+        if scene_idx >= n_scenes:
+            print(f"  [警告] 场景索引 {scene_idx} 超出范围 (共 {n_scenes} 个场景)，使用场景 0")
+            scene_idx = 0
+        
+        scene = data_2d[scene_idx]
         H, W, C = scene.shape
-        print(f"  场景 {scene_idx}: {scene.shape}")
+        print(f"  场景 {scene_idx}: [{H} × {W} × {C}]")
+        print(f"  场景数值范围: [{scene.min():.4f}, {scene.max():.4f}]")
+        print(f"  场景均值: {scene.mean():.4f}")
         
         # 展平
         spectra = scene.reshape(-1, C)
         
         # 生成信号并预测
-        result = self.test_from_spectra(spectra, name=f"kaist_scene_{scene_idx}", add_noise=add_noise)
+        result = self.test_from_spectra(spectra, name=f"{dataset_name}_scene_{scene_idx}", add_noise=add_noise)
         
         # 重塑为图像
         result['gt_image'] = result['gt'].reshape(H, W, C)
         result['pred_image'] = result['pred'].reshape(H, W, C)
         result['shape'] = (H, W, C)
+        result['scene_idx'] = scene_idx
+        result['dataset_name'] = dataset_name
         
         return result
+    
+    def test_kaist_2d(self, kaist_2d_path, scene_idx=0, add_noise=True):
+        """测试 KAIST 2D 场景"""
+        return self.test_2d_scene(kaist_2d_path, scene_idx, dataset_name="kaist", add_noise=add_noise)
+    
+    def test_50scenes_2d(self, scenes50_2d_path, scene_idx=0, add_noise=True):
+        """测试 50Scenes 2D 场景"""
+        return self.test_2d_scene(scenes50_2d_path, scene_idx, dataset_name="50scenes", add_noise=add_noise)
     
     def test_colorchecker(self, colorchecker_path, add_noise=True):
         """测试 ColorChecker"""
@@ -347,11 +349,9 @@ class FDMTester:
         print(f"测试模式: colorchecker")
         print('='*60)
         
-        # 加载 colorchecker
         spectra = load_mat_auto(colorchecker_path)
         print(f"  ColorChecker shape: {spectra.shape}")
         
-        # 确保是 [N, 31]
         if spectra.shape[1] != 31 and spectra.shape[0] == 31:
             spectra = spectra.T
         
@@ -386,9 +386,11 @@ class FDMTester:
         n_rows = (n_plots + n_cols - 1) // n_cols
         
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows))
-        if n_rows == 1:
-            axes = axes[np.newaxis, :] if n_cols > 1 else np.array([[axes]])
-        if n_cols == 1:
+        if n_rows == 1 and n_cols == 1:
+            axes = np.array([[axes]])
+        elif n_rows == 1:
+            axes = axes[np.newaxis, :]
+        elif n_cols == 1:
             axes = axes[:, np.newaxis]
         
         for i in range(n_plots):
@@ -408,7 +410,6 @@ class FDMTester:
             if i == 0:
                 ax.legend(fontsize=8)
         
-        # 隐藏多余的子图
         for i in range(n_plots, n_rows * n_cols):
             axes[i // n_cols, i % n_cols].axis('off')
         
@@ -424,7 +425,6 @@ class FDMTester:
         pred = result['pred']
         n_patches = len(gt)
         
-        # 假设是 4x6 或 6x4 的 ColorChecker
         if n_patches == 24:
             rows, cols = 4, 6
         elif n_patches == 140:
@@ -435,7 +435,6 @@ class FDMTester:
         
         fig, axes = plt.subplots(2, 2, figsize=(14, 12))
         
-        # GT RGB
         gt_rgb = spectrum_to_rgb(gt, self.wavelengths)
         gt_rgb_grid = np.zeros((rows, cols, 3))
         for i in range(min(n_patches, rows * cols)):
@@ -445,7 +444,6 @@ class FDMTester:
         axes[0, 0].set_title('Ground Truth RGB', fontsize=14)
         axes[0, 0].axis('off')
         
-        # Pred RGB
         pred_rgb = spectrum_to_rgb(pred, self.wavelengths)
         pred_rgb_grid = np.zeros((rows, cols, 3))
         for i in range(min(n_patches, rows * cols)):
@@ -455,7 +453,6 @@ class FDMTester:
         axes[0, 1].set_title('Predicted RGB', fontsize=14)
         axes[0, 1].axis('off')
         
-        # RMSE per patch
         rmse = compute_rmse(pred, gt)
         rmse_grid = np.zeros((rows, cols))
         for i in range(min(n_patches, rows * cols)):
@@ -466,7 +463,6 @@ class FDMTester:
         axes[1, 0].axis('off')
         plt.colorbar(im, ax=axes[1, 0], fraction=0.046)
         
-        # PSNR per patch
         psnr = compute_psnr(pred, gt)
         psnr_grid = np.zeros((rows, cols))
         for i in range(min(n_patches, rows * cols)):
@@ -537,6 +533,10 @@ class FDMTester:
         ax6.set_title('PSNR Distribution')
         ax6.legend()
         
+        dataset_name = result.get('dataset_name', 'scene')
+        scene_idx = result.get('scene_idx', 0)
+        plt.suptitle(f"{dataset_name.upper()} Scene {scene_idx} Reconstruction", fontsize=16)
+        
         plt.tight_layout()
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         plt.close()
@@ -602,24 +602,17 @@ class FDMTester:
         os.makedirs(output_dir, exist_ok=True)
         print(f"\n生成报告到: {output_dir}")
         
-        # 统计信息
         stats = self.print_statistics(result)
         
-        # 光谱对比
         self.plot_spectral_comparison(result, os.path.join(output_dir, '01_spectral_comparison.png'))
-        
-        # 误差分布
         self.plot_error_histogram(result, os.path.join(output_dir, '02_error_histogram.png'))
         
-        # ColorChecker 特有
         if 'colorchecker' in result['name']:
             self.plot_colorchecker_grid(result, os.path.join(output_dir, '03_colorchecker_grid.png'))
         
-        # 2D 图像
         if 'gt_image' in result:
             self.plot_2d_reconstruction(result, os.path.join(output_dir, '03_2d_reconstruction.png'))
         
-        # 保存数据
         np.savez(os.path.join(output_dir, 'results.npz'),
                  gt=result['gt'], pred=result['pred'], **stats)
         
@@ -633,7 +626,6 @@ def main():
     print('FDM 端到端模型测试')
     print('='*60)
     
-    # 读取配置
     model_path = CONFIG['model_path']
     fdm_data_path = CONFIG['fdm_data_path']
     test_mode = CONFIG['test_mode']
@@ -649,7 +641,6 @@ def main():
     print(f"  输出目录: {output_dir}")
     print(f"  设备: {device}")
     
-    # 检查文件
     if not os.path.exists(model_path):
         print(f"\n[错误] 模型不存在: {model_path}")
         return
@@ -658,7 +649,6 @@ def main():
         print(f"\n[错误] FDM 数据不存在: {fdm_data_path}")
         return
     
-    # 创建测试器
     tester = FDMTester(model_path, fdm_data_path, device=device)
     
     # 根据模式测试
@@ -668,12 +658,21 @@ def main():
         
     elif test_mode == "kaist_2d":
         kaist_path = CONFIG['kaist_2d_path']
-        scene_idx = CONFIG['scene_idx']
+        scene_idx = CONFIG['kaist_scene_idx']
         if not os.path.exists(kaist_path):
             print(f"\n[错误] KAIST 2D 不存在: {kaist_path}")
             return
         result = tester.test_kaist_2d(kaist_path, scene_idx=scene_idx, add_noise=add_noise)
         report_dir = os.path.join(output_dir, f'kaist_scene_{scene_idx}')
+        
+    elif test_mode == "50scenes_2d":
+        scenes50_path = CONFIG['scenes50_2d_path']
+        scene_idx = CONFIG['scenes50_scene_idx']
+        if not os.path.exists(scenes50_path):
+            print(f"\n[错误] 50Scenes 2D 不存在: {scenes50_path}")
+            return
+        result = tester.test_50scenes_2d(scenes50_path, scene_idx=scene_idx, add_noise=add_noise)
+        report_dir = os.path.join(output_dir, f'50scenes_scene_{scene_idx}')
         
     elif test_mode == "colorchecker":
         cc_path = CONFIG['colorchecker_path']
@@ -694,10 +693,9 @@ def main():
         
     else:
         print(f"\n[错误] 未知测试模式: {test_mode}")
-        print("可选: test_dataset, kaist_2d, colorchecker, custom")
+        print("可选: test_dataset, kaist_2d, 50scenes_2d, colorchecker, custom")
         return
     
-    # 生成报告
     tester.generate_report(result, report_dir)
     
     print('\n' + '='*60)
