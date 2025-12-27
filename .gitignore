@@ -1,0 +1,5 @@
+paper-02/generate_dataset/fdm_cave100k_kaist50k.mat
+paper-02/generate_dataset_legacy/fdm_cave100k_kaist50k.mat
+paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct.mat
+paper-02/generate_dataset/fdm_e2e_cave124k_kaist50k_noise5pct.mat
+paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct_aug.mat
