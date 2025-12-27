@@ -17,14 +17,12 @@ color_idx = 16;
 [y, y_info] = extract_measurement(sample_csv, 'SkipLEDs', skip_leds);
 % 3. 加载色卡真值 x
 [x, x_info] = load_ground_truth(color_idx, 'ColorPath', mat_path);
-
 % 4. 计算理论值
 y_theory = A * x;
-
 % 5. 对比
 metrics = compare_theory_vs_measurement(y, y_theory, 'Labels', A_info.working_leds);
 
 %% 或者直接用于光谱重建
 x_gt = x;
-[x_est, info] = fdm_reconstruct(y, A, 'Method', 'tv');
+[x_est, info] = fdm_reconstruct(y_theory, A, 'Method', 'tv');
 [rmse, psnr_val] = fdm_metrics(x_gt, x_est,'Plot',true);
