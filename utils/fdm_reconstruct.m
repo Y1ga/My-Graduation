@@ -96,7 +96,7 @@ function [x_est, info] = fdm_reconstruct(y, A, varargin)
             tol = opts.Tol;
             
             % 自适应缩放：让 y*scale 的均值约为100
-            target_mean = 100;
+            target_mean = 5;
             y_mean = mean(abs(y));
             if y_mean < eps
                 scale = 1;
