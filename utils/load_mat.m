@@ -5,12 +5,14 @@ function mat = load_mat(varargin)
 %     load_mat(filepath)                    % 完整路径
 %     load_mat(filename, folder)            % 文件名 + 所在文件夹
 %     load_mat(filename, date)              % 文件名 + 日期（使用默认目录结构）
+%     load_mat(filename, 'gt')              % 文件名 + 'gt'（从 pwd/data/gt/mat 加载）
 %     load_mat(..., 'var', varname)         % 指定要提取的变量名
 %
 %   示例：
 %     A = load_mat('D:/data/test.mat')
 %     A = load_mat('test', 'D:/data/')
 %     A = load_mat('spectrum', '20241225')
+%     A = load_mat('led_0711', 'gt')        % 从当前目录下的 ./data/gt/mat 加载
 
     % 解析参数
     [filepath, varname] = parse_inputs(varargin{:});
@@ -57,15 +59,42 @@ function [filepath, varname] = parse_inputs(varargin)
         
     elseif numel(varargin) == 2
         arg1 = char(varargin{1});  % 文件名
-        arg2 = to_path(varargin{2});  % 文件夹或日期
+        arg2 = to_path(varargin{2});  % 文件夹、日期或特殊关键字
         
         if is_path(arg2)
             % arg2 是文件夹路径
             filepath = fullfile(arg2, arg1);
         else
-            % arg2 是日期，使用默认目录结构
-            base_dir = get_base_dir();
-            filepath = fullfile(base_dir, 'data', arg2, 'mat', arg1);
+            % arg2 可能是日期或特殊关键字（如 'gt'）
+            % 基于当前工作目录 pwd
+            base_dir = pwd;
+            
+            % 尝试多个可能的路径
+            possible_paths = {
+                fullfile(base_dir, 'data', arg2, 'mat', arg1)      % ./data/gt/mat/
+                fullfile(base_dir, 'data', 'mat', arg2, arg1)      % ./data/mat/gt/
+                fullfile(base_dir, 'data', arg2, arg1)             % ./data/gt/
+                fullfile(base_dir, arg2, 'mat', arg1)              % ./gt/mat/
+                fullfile(base_dir, arg2, arg1)                     % ./gt/
+            };
+            
+            % 补全 .mat 扩展名后检查
+            filepath = '';
+            for i = 1:length(possible_paths)
+                test_path = possible_paths{i};
+                if ~endsWith(test_path, '.mat', 'IgnoreCase', true)
+                    test_path = [test_path, '.mat'];
+                end
+                if isfile(test_path)
+                    filepath = test_path;
+                    break;
+                end
+            end
+            
+            % 如果都找不到，使用第一个路径（让后续报错）
+            if isempty(filepath)
+                filepath = possible_paths{1};
+            end
         end
     else
         error('参数错误，用法: load_mat(filepath) 或 load_mat(filename, folder)');
@@ -78,32 +107,17 @@ function [filepath, varname] = parse_inputs(varargin)
 end
 
 function p = to_path(s)
-    % 转换为标准路径格式，统一使用正斜杠避免转义问题
     p = char(s);
-    p = strrep(p, '\', '/');  % 反斜杠转正斜杠
+    p = strrep(p, '\', '/');
 end
 
 function tf = is_path(s)
-    % 判断是否为路径（包含路径分隔符、盘符、或已存在的文件夹）
     s = char(s);
     has_separator = contains(s, '/') || contains(s, '\');
-    has_drive = (length(s) >= 2 && s(2) == ':');  % Windows盘符
-    starts_with_slash = startsWith(s, '/') || startsWith(s, '~');  % Unix绝对路径
+    has_drive = (length(s) >= 2 && s(2) == ':');
+    starts_with_slash = startsWith(s, '/') || startsWith(s, '~');
     
     tf = has_separator || has_drive || starts_with_slash || isfolder(s);
-end
-
-function base_dir = get_base_dir()
-    stack = dbstack('-completenames');
-    for i = numel(stack):-1:1
-        if ~isempty(stack(i).file)
-            [base_dir, ~, ~] = fileparts(stack(i).file);
-            if ~isempty(base_dir)
-                return;
-            end
-        end
-    end
-    base_dir = pwd;
 end
 
 function mat = extract_data(data)
@@ -125,10 +139,10 @@ function show_error(filepath)
     [folder, name, ext] = fileparts(filepath);
     if isempty(ext), ext = '.mat'; end
     
-    % 使用 fprintf 直接输出，避免 sprintf 转义问题
     fprintf('\n========== load_mat 错误 ==========\n');
     fprintf('找不到: %s%s\n', name, ext);
     fprintf('完整路径: %s\n', filepath);
+    fprintf('当前工作目录: %s\n', pwd);
     
     if isempty(folder), folder = pwd; end
     
@@ -147,6 +161,5 @@ function show_error(filepath)
     end
     fprintf('====================================\n\n');
     
-    % 抛出简洁错误
     error('load_mat:fileNotFound', '文件不存在: %s', strrep(filepath, '\', '/'));
 end
