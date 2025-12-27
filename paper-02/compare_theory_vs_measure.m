@@ -1,13 +1,14 @@
 clear;clc;
-%% 配置
-mat_path = 'X:/Github/My-Repository/My-Graduation/data/mat';
-base_path = 'X:\Github\My-Repository\My-Graduation\paper-02\data\1222\';
-% 文件路径
-white_csv = [base_path, '新建文件5.csv'];   % 白板参考
-sample_csv = [base_path, '新建文件3.csv'];  % 色卡样本测量
 
+%% 配置（自动检测路径）
+[mat_path, base_path] = get_project_paths();
+
+% 文件路径
+white_csv = fullfile(base_path, '新建文件5.csv');
+sample_csv = fullfile(base_path, '新建文件3.csv');
 skip_leds = [8, 9];
 color_idx = 16;
+
 
 %% 分步调用
 % 1. 构建系统矩阵 A
