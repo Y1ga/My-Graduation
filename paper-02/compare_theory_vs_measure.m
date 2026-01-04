@@ -4,10 +4,10 @@ clear;clc;
 [mat_path, base_path] = get_project_paths();
 
 % 文件路径
-white_csv = fullfile(base_path, '新建文件5.csv');
-sample_csv = fullfile(base_path, '新建文件3.csv');
-skip_leds = [8, 9];
-color_idx = 16;
+white_csv = fullfile(base_path, '新建文件3.csv');
+sample_csv = fullfile(base_path, '新建文件4.csv');
+skip_leds = [];
+color_idx = 6;
 
 
 %% 分步调用
@@ -23,6 +23,6 @@ y_theory = A * x;
 metrics = compare_theory_vs_measurement(y, y_theory, 'Labels', A_info.working_leds);
 
 %% 或者直接用于光谱重建
-x_gt = x;
-[x_est, info] = fdm_reconstruct(y_theory, A, 'Method', 'tv');
-[rmse, psnr_val] = fdm_metrics(x_gt, x_est,'Plot',true);
+% x_gt = x;
+% [x_est, info] = fdm_reconstruct(y, A, 'Method', 'tv');
+% [rmse, psnr_val] = fdm_metrics(x_gt, x_est,'Plot',true);
