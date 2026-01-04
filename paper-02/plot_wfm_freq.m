@@ -5,7 +5,7 @@ clear; clc; close all;
 
 %% 配置
 path = "D:\Measure\";
-wfm_file = path+"新建文件5.wfm";  % 修改为你的文件路径
+wfm_file = path+"新建文件10.wfm";  % 修改为你的文件路径
 fs = 1e9;  % 采样率 1 GSa/s
 
 % 12个LED频率 (kHz)
