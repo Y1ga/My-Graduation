@@ -4,3 +4,5 @@ paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct.mat
 paper-02/generate_dataset/fdm_e2e_cave124k_kaist50k_noise5pct.mat
 paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct_aug.mat
 Paper-OTFE/~$PPT-Paper-OTFE.pptx
+Paper-OTFE/process_data/checkpoints/best_model.pth
+Paper-OTFE/process_data/dataset/fdm_e2e_12led_300us_3000pts.mat
