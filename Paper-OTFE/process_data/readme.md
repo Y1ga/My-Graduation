@@ -14,3 +14,18 @@
 
 - 训练网络，用测试的真实时域信号验证训练的网络好不好用
 - 确定色卡的真值（绝对）
+
+### 26-01-06
+
+![RMSE_vs_duration](W:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\figure\RMSE_vs_duration.png)
+
+确定采样时间为330ms
+
+- 制作训练集
+  - 输入时域信号
+- 训练网络
+
+### 26-01-07
+
+- 分析时域信号数据集情况，归一化好输入的
+- 或者换种思路，训练两个网络：一个是解调FFT；另一个是FFT转光谱

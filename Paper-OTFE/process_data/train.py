@@ -1,7 +1,9 @@
 """
 FDM End-to-End 1D CNN 训练代码
-输入: 3000 点时域信号
+输入: 5000 点时域信号 (350μs, 降采样70x)
 输出: 31 维光谱
+
+直接在VSCode中点击运行
 """
 
 import torch
@@ -9,19 +11,19 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
-import scipy.io as sio
 import matplotlib.pyplot as plt
 from pathlib import Path
 import time
+import h5py
 
-# ==================== 配置 ====================
+# ==================== 配置（在这里修改）====================
 class Config:
     # 数据路径
-    data_path = r".\dataset\fdm_e2e_12led_300us_3000pts.mat"
-    save_dir = r".\checkpoints"
+    data_path = r"./dataset/fdm_e2e_5000pts_zscore_fast.mat"
+    save_dir = r"./checkpoints"
     
     # 网络参数
-    input_dim = 3000
+    input_dim = 5000
     output_dim = 31
     
     # 训练参数
@@ -36,49 +38,50 @@ class Config:
     # 随机种子
     seed = 42
 
+
 # ==================== 1D CNN 模型 ====================
 class FDM_CNN(nn.Module):
     """
     1D CNN for FDM spectral reconstruction
-    Input: [batch, 1, 3000]
+    Input: [batch, 1, 5000]
     Output: [batch, 31]
     """
-    def __init__(self, input_dim=3000, output_dim=31):
+    def __init__(self, input_dim=5000, output_dim=31):
         super(FDM_CNN, self).__init__()
         
         # 特征提取层
         self.features = nn.Sequential(
-            # Block 1: 3000 -> 1500
+            # Block 1: 5000 -> 2500
             nn.Conv1d(1, 32, kernel_size=7, stride=1, padding=3),
             nn.BatchNorm1d(32),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             
-            # Block 2: 1500 -> 750
+            # Block 2: 2500 -> 1250
             nn.Conv1d(32, 64, kernel_size=5, stride=1, padding=2),
             nn.BatchNorm1d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             
-            # Block 3: 750 -> 375
+            # Block 3: 1250 -> 625
             nn.Conv1d(64, 128, kernel_size=5, stride=1, padding=2),
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             
-            # Block 4: 375 -> 187
+            # Block 4: 625 -> 312
             nn.Conv1d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(256),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             
-            # Block 5: 187 -> 93
+            # Block 5: 312 -> 156
             nn.Conv1d(256, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(256),
             nn.ReLU(inplace=True),
             nn.MaxPool1d(2),
             
-            # Block 6: 93 -> 46
+            # Block 6: 156 -> 78
             nn.Conv1d(256, 512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
@@ -108,7 +111,7 @@ class FDM_CNN(nn.Module):
         return x.view(1, -1).size(1)
     
     def forward(self, x):
-        # x: [batch, 3000] -> [batch, 1, 3000]
+        # x: [batch, 5000] -> [batch, 1, 5000]
         if x.dim() == 2:
             x = x.unsqueeze(1)
         
@@ -117,12 +120,14 @@ class FDM_CNN(nn.Module):
         x = self.regressor(x)
         return x
 
+
 # ==================== 数据加载 ====================
 def load_data(data_path):
     print(f"加载数据: {data_path}")
     
     try:
         # 尝试 scipy (v7.2 及以下)
+        import scipy.io as sio
         data = sio.loadmat(data_path)
         X_train = data['X_train'].astype(np.float32)
         Y_train = data['Y_train'].astype(np.float32)
@@ -130,9 +135,8 @@ def load_data(data_path):
         Y_val = data['Y_val'].astype(np.float32)
         X_test = data['X_test'].astype(np.float32)
         Y_test = data['Y_test'].astype(np.float32)
-    except NotImplementedError:
+    except:
         # v7.3 格式，用 h5py
-        import h5py
         with h5py.File(data_path, 'r') as f:
             X_train = np.array(f['X_train']).T.astype(np.float32)
             Y_train = np.array(f['Y_train']).T.astype(np.float32)
@@ -141,6 +145,15 @@ def load_data(data_path):
             X_test = np.array(f['X_test']).T.astype(np.float32)
             Y_test = np.array(f['Y_test']).T.astype(np.float32)
     
+    print(f"  训练集: X={X_train.shape}, Y={Y_train.shape}")
+    print(f"  验证集: X={X_val.shape}, Y={Y_val.shape}")
+    print(f"  测试集: X={X_test.shape}, Y={Y_test.shape}")
+    
+    # 数据范围检查
+    print(f"\n  数据范围:")
+    print(f"    X_train: [{X_train.min():.4f}, {X_train.max():.4f}], mean={X_train.mean():.4f}, std={X_train.std():.4f}")
+    print(f"    Y_train: [{Y_train.min():.4f}, {Y_train.max():.4f}], mean={Y_train.mean():.4f}, std={Y_train.std():.4f}")
+    
     X_train = torch.from_numpy(X_train)
     Y_train = torch.from_numpy(Y_train)
     X_val = torch.from_numpy(X_val)
@@ -148,11 +161,8 @@ def load_data(data_path):
     X_test = torch.from_numpy(X_test)
     Y_test = torch.from_numpy(Y_test)
     
-    print(f"  训练集: X={X_train.shape}, Y={Y_train.shape}")
-    print(f"  验证集: X={X_val.shape}, Y={Y_val.shape}")
-    print(f"  测试集: X={X_test.shape}, Y={Y_test.shape}")
-    
     return X_train, Y_train, X_val, Y_val, X_test, Y_test
+
 
 # ==================== 评估指标 ====================
 def compute_metrics(pred, target):
@@ -173,6 +183,7 @@ def compute_metrics(pred, target):
     
     return mrae, rmse, sam
 
+
 # ==================== 训练函数 ====================
 def train_epoch(model, loader, criterion, optimizer, device):
     model.train()
@@ -189,6 +200,7 @@ def train_epoch(model, loader, criterion, optimizer, device):
         total_loss += loss.item() * X.size(0)
     
     return total_loss / len(loader.dataset)
+
 
 def validate(model, loader, criterion, device):
     model.eval()
@@ -211,8 +223,79 @@ def validate(model, loader, criterion, device):
     
     return total_loss / len(loader.dataset), mrae, rmse, sam
 
+
+# ==================== 可视化 ====================
+def plot_history(history, save_dir):
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    
+    # Loss
+    axes[0, 0].plot(history['train_loss'], label='Train')
+    axes[0, 0].plot(history['val_loss'], label='Val')
+    axes[0, 0].set_xlabel('Epoch')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].set_title('Loss Curve')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True)
+    
+    # MRAE
+    axes[0, 1].plot(history['val_mrae'])
+    axes[0, 1].set_xlabel('Epoch')
+    axes[0, 1].set_ylabel('MRAE')
+    axes[0, 1].set_title('Validation MRAE')
+    axes[0, 1].grid(True)
+    
+    # RMSE
+    axes[1, 0].plot(history['val_rmse'])
+    axes[1, 0].set_xlabel('Epoch')
+    axes[1, 0].set_ylabel('RMSE')
+    axes[1, 0].set_title('Validation RMSE')
+    axes[1, 0].grid(True)
+    
+    # SAM
+    axes[1, 1].plot(history['val_sam'])
+    axes[1, 1].set_xlabel('Epoch')
+    axes[1, 1].set_ylabel('SAM (°)')
+    axes[1, 1].set_title('Validation SAM')
+    axes[1, 1].grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(Path(save_dir) / 'training_history.png', dpi=150)
+    plt.show()
+    print(f"已保存训练曲线: {Path(save_dir) / 'training_history.png'}")
+
+
+def visualize_predictions(model, loader, device, save_dir, n_samples=6):
+    model.eval()
+    wavelengths = np.linspace(400, 700, 31)
+    
+    # 获取一些样本
+    X, Y = next(iter(loader))
+    X, Y = X[:n_samples].to(device), Y[:n_samples]
+    
+    with torch.no_grad():
+        pred = model(X).cpu()
+    
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    
+    for i in range(n_samples):
+        axes[i].plot(wavelengths, Y[i].numpy(), 'b-', linewidth=2, label='Ground Truth')
+        axes[i].plot(wavelengths, pred[i].numpy(), 'r--', linewidth=2, label='Prediction')
+        axes[i].set_xlabel('Wavelength (nm)')
+        axes[i].set_ylabel('Reflectance')
+        axes[i].set_title(f'Sample {i+1}')
+        axes[i].legend()
+        axes[i].grid(True)
+        axes[i].set_ylim([0, 1])
+    
+    plt.tight_layout()
+    plt.savefig(Path(save_dir) / 'predictions.png', dpi=150)
+    plt.show()
+    print(f"已保存预测可视化: {Path(save_dir) / 'predictions.png'}")
+
+
 # ==================== 主训练流程 ====================
-def train(cfg):
+def train_model(cfg):
     # 设置随机种子
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
@@ -254,7 +337,7 @@ def train(cfg):
     best_val_loss = float('inf')
     
     print(f"\n开始训练 ({cfg.epochs} epochs)...")
-    print("-" * 70)
+    print("-" * 80)
     
     for epoch in range(1, cfg.epochs + 1):
         t0 = time.time()
@@ -292,7 +375,7 @@ def train(cfg):
               f"MRAE: {val_mrae:.4f} | RMSE: {val_rmse:.4f} | SAM: {val_sam:.2f}° | "
               f"Time: {elapsed:.1f}s")
     
-    print("-" * 70)
+    print("-" * 80)
     
     # 加载最优模型测试
     checkpoint = torch.load(Path(cfg.save_dir) / 'best_model.pth')
@@ -313,75 +396,8 @@ def train(cfg):
     
     return model, history
 
-# ==================== 可视化 ====================
-def plot_history(history, save_dir):
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    
-    # Loss
-    axes[0, 0].plot(history['train_loss'], label='Train')
-    axes[0, 0].plot(history['val_loss'], label='Val')
-    axes[0, 0].set_xlabel('Epoch')
-    axes[0, 0].set_ylabel('Loss')
-    axes[0, 0].set_title('Loss Curve')
-    axes[0, 0].legend()
-    axes[0, 0].grid(True)
-    
-    # MRAE
-    axes[0, 1].plot(history['val_mrae'])
-    axes[0, 1].set_xlabel('Epoch')
-    axes[0, 1].set_ylabel('MRAE')
-    axes[0, 1].set_title('Validation MRAE')
-    axes[0, 1].grid(True)
-    
-    # RMSE
-    axes[1, 0].plot(history['val_rmse'])
-    axes[1, 0].set_xlabel('Epoch')
-    axes[1, 0].set_ylabel('RMSE')
-    axes[1, 0].set_title('Validation RMSE')
-    axes[1, 0].grid(True)
-    
-    # SAM
-    axes[1, 1].plot(history['val_sam'])
-    axes[1, 1].set_xlabel('Epoch')
-    axes[1, 1].set_ylabel('SAM (°)')
-    axes[1, 1].set_title('Validation SAM')
-    axes[1, 1].grid(True)
-    
-    plt.tight_layout()
-    plt.savefig(Path(save_dir) / 'training_history.png', dpi=150)
-    plt.close()
-    print(f"已保存训练曲线: {Path(save_dir) / 'training_history.png'}")
 
-def visualize_predictions(model, loader, device, save_dir, n_samples=6):
-    model.eval()
-    wavelengths = np.linspace(400, 700, 31)
-    
-    # 获取一些样本
-    X, Y = next(iter(loader))
-    X, Y = X[:n_samples].to(device), Y[:n_samples]
-    
-    with torch.no_grad():
-        pred = model(X).cpu()
-    
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-    axes = axes.flatten()
-    
-    for i in range(n_samples):
-        axes[i].plot(wavelengths, Y[i].numpy(), 'b-', linewidth=2, label='Ground Truth')
-        axes[i].plot(wavelengths, pred[i].numpy(), 'r--', linewidth=2, label='Prediction')
-        axes[i].set_xlabel('Wavelength (nm)')
-        axes[i].set_ylabel('Reflectance')
-        axes[i].set_title(f'Sample {i+1}')
-        axes[i].legend()
-        axes[i].grid(True)
-        axes[i].set_ylim([0, 1])
-    
-    plt.tight_layout()
-    plt.savefig(Path(save_dir) / 'predictions.png', dpi=150)
-    plt.close()
-    print(f"已保存预测可视化: {Path(save_dir) / 'predictions.png'}")
-
-# ==================== 入口 ====================
+# ==================== 直接运行 ====================
 if __name__ == '__main__':
     cfg = Config()
-    model, history = train(cfg)
+    model, history = train_model(cfg)

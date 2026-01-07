@@ -6,7 +6,7 @@ function [XYZ, xyz] = spec2xyz_31(spec)
     blueCMF=ciexyz31_1(:,4);
     source=ill(:,2);
     
-    wl_RS=400:10:700; 
+    wl_RS=(400:10:700)'; 
     rf = spec;
     wl=(400:700)'; %nm
     
