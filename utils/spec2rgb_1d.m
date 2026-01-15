@@ -1,5 +1,5 @@
 function [rgb_1d, XYZ_1d] = spec2rgb_1d(x)
-    num = length(x);
+    num = size(x, 2);
     XYZ = zeros(3, num);
 
     % spec2rgb

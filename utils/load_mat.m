@@ -68,25 +68,31 @@ function [filepath, varname] = parse_inputs(varargin)
             % arg2 可能是日期或特殊关键字（如 'gt'）
             % 基于当前工作目录 pwd
             base_dir = pwd;
+            parent_dir = fileparts(base_dir);              % 上一级目录
+            grandparent_dir = fileparts(parent_dir);       % 上两级目录
             
-            % 尝试多个可能的路径
+            % 补全文件名的 .mat 扩展名
+            filename = arg1;
+            if ~endsWith(filename, '.mat', 'IgnoreCase', true)
+                filename = [filename, '.mat'];
+            end
+            
+            % 尝试多个可能的路径（按优先级排序）
             possible_paths = {
-                fullfile(base_dir, 'data', arg2, 'mat', arg1)      % ./data/gt/mat/
-                fullfile(base_dir, 'data', 'mat', arg2, arg1)      % ./data/mat/gt/
-                fullfile(base_dir, 'data', arg2, arg1)             % ./data/gt/
-                fullfile(base_dir, arg2, 'mat', arg1)              % ./gt/mat/
-                fullfile(base_dir, arg2, arg1)                     % ./gt/
+                fullfile(base_dir, 'data', arg2, 'mat', filename)           % ./data/gt/mat/
+                fullfile(base_dir, 'data', 'mat', arg2, filename)           % ./data/mat/gt/
+                fullfile(base_dir, 'data', arg2, filename)                  % ./data/gt/
+                fullfile(base_dir, arg2, 'mat', filename)                   % ./gt/mat/
+                fullfile(base_dir, arg2, filename)                          % ./gt/
+                fullfile(parent_dir, 'data', arg2, 'mat', filename)         % ../data/gt/mat/
+                fullfile(grandparent_dir, 'data', arg2, 'mat', filename)    % ../../data/gt/mat/
             };
             
-            % 补全 .mat 扩展名后检查
+            % 逐个检查
             filepath = '';
             for i = 1:length(possible_paths)
-                test_path = possible_paths{i};
-                if ~endsWith(test_path, '.mat', 'IgnoreCase', true)
-                    test_path = [test_path, '.mat'];
-                end
-                if isfile(test_path)
-                    filepath = test_path;
+                if isfile(possible_paths{i})
+                    filepath = possible_paths{i};
                     break;
                 end
             end

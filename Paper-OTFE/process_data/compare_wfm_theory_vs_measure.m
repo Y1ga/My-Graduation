@@ -2,16 +2,21 @@ clear;
 clc;
 %% 
 A0 = load_mat("led_0711", "gt")';
+A0 = A0 ./ sum(A0, 2);
 colorchecker = load_mat("colorchecker", "gt");
-idx = 15;
+idx = 5;
 x = colorchecker(:, idx);
+
 %% 
 % -1,0是白板,
 % 1~24对应24色卡
-path = "D:\Measure\";
-k_A = read_rigol_wfm(path+"新建文件-1.wfm");
+path = "./data/PD-01-04/";
+duration = 100e-5;
+k_A = read_rigol_wfm(path+"新建文件-1.wfm", 1e9, duration);
+% k_A = load_mat("k_A_best", "gt");
 A = k_A .* A0;
-y_measured = read_rigol_wfm(path+"新建文件"+num2str(idx)+".wfm");
+
+y_measured = read_rigol_wfm(path+"新建文件"+num2str(idx)+".wfm", 1e9, duration);
 y_theory = A * x;
 %% 
 figure(1);
@@ -21,102 +26,91 @@ plot(y_measured_norm);
 hold on;
 plot(y_theory_norm);
 legend('测量值','理论值');
+hold off;
 %% 
 % 1. 计算点对点的相对误差 (得到一个 12x1 的向量)
 rel_error = abs(y_measured_norm - y_theory_norm) ./ abs(y_theory_norm);
-
 % 2. 如果你想看平均相对误差 (百分比形式)
 mean_rel_error = mean(rel_error) * 100;
-
 % 3. 输出结果
 fprintf('平均相对误差为: %.2f%%\n', mean_rel_error);
 %% 
 figure(2);
 k_beta = max(y_theory,[],'all') / max(y_measured,[],'all') ;
+k_beta = 1;
 y = y_measured * k_beta;
-x_est = fdm_reconstruct(y, A, 'Method', 'tv');
+x_est = fdm_reconstruct(y ./ k_A, A0, 'Method', 'tv');
+x_est = norm_1(x_est,'all');
 wav = 400:10:700;
+rmse = RMSE(x_est, x);
+psnr = PSNR(rmse);
+fprintf('PSNR为: %.1f dB\n', psnr);
 plot(wav, x_est,wav, x);
 legend('预测','真实');
+ylim([0,1]);
 
 %% 
-function [amps, freq_detected] = read_rigol_wfm(filename, fs)
-% READ_RIGOL_WFM 从 Rigol DS1202Z-E 的 WFM 文件中提取12个LED的幅度值
-%
-% 输入:
-%   filename - WFM 文件路径
-%   fs       - 采样率 (Hz), 默认 1e9 (1 GSa/s)
-%
-% 输出:
-%   amps         - 12x1 向量, 各LED频率处的FFT幅度
-%   freq_detected - 12x1 向量, 实际检测到的峰值频率 (kHz)
-%
-% 示例:
-%   [amps, freqs] = read_rigol_wfm('新建文件2.wfm');
-%   [amps, freqs] = read_rigol_wfm('新建文件2.wfm', 1e9);
+%% ================== 读取函数（修正校正方向） ==================
+function [amps, freq_detected, volt_div, v_min, v_max] = read_rigol_wfm(filename, fs, duration)
+    if nargin < 2 || isempty(fs), fs = 1e9; end
+    if nargin < 3 || isempty(duration), duration = inf; end
 
-    if nargin < 2
-        fs = 1e9;  % 默认 1 GSa/s
-    end
-
-    % 12个LED的调制频率 (kHz)
     led_freqs = [30, 50, 70, 110, 130, 170, 190, 230, 290, 310, 370, 410];
     n_leds = length(led_freqs);
 
-    %% 读取 WFM 文件
     fid = fopen(filename, 'rb');
-    if fid == -1
-        error('无法打开文件: %s', filename);
-    end
+    if fid == -1, error('无法打开文件: %s', filename); end
+
+    % 读取真实V/div (0x84)
+    fseek(fid, hex2dec('84'), 'bof');
+    volt_div = fread(fid, 1, 'float32');
     
-    % 读取电压刻度 (偏移 0xA0, float32)
+    % 读取电压刻度因子 (0xA0)
     fseek(fid, hex2dec('A0'), 'bof');
     volt_scale = fread(fid, 1, 'float32');
     
-    % 跳过头部 (3334 bytes), 读取数据
-    header_size = 3334;
-    fseek(fid, header_size, 'bof');
+    % 读取电压偏移 (0xA4)
+    volt_offset = fread(fid, 1, 'float32');
+
+    % 读取数据
+    fseek(fid, 3334, 'bof');
     raw_data = fread(fid, inf, 'uint8');
     fclose(fid);
-    
-    % 转换为电压
-    signal = (double(raw_data) - 128) * volt_scale;
-    
-    fprintf('读取 %s: %d 点, 电压范围 [%.3f, %.3f] V\n', ...
-        filename, length(signal), min(signal), max(signal));
 
-    %% FFT 分析
-    % 去除直流分量
-    signal_ac = signal - mean(signal);
+    % 转换为电压
+    signal = (double(raw_data) - 128) * volt_scale + volt_offset;
     
+    % 截取指定时长
+    if isfinite(duration)
+        n_use = min(round(duration * fs), length(signal));
+        signal = signal(1:n_use);
+    end
+
+    % 输出电压范围
+    v_min = min(signal);
+    v_max = max(signal);
+
     % FFT
-    n = length(signal_ac);
-    n_fft = 2^nextpow2(n);
+    signal_ac = signal - mean(signal);
+    n_fft = 2^nextpow2(length(signal_ac));
     fft_result = fft(signal_ac, n_fft);
     fft_mag = abs(fft_result(1:n_fft/2));
-    freq_axis = (0:n_fft/2-1) * fs / n_fft / 1e3;  % kHz
-    
-    %% 提取各LED频率的幅度
+    freq_axis = (0:n_fft/2-1) * fs / n_fft / 1e3;
+    freq_resolution = fs / n_fft / 1e3;
+
+    % 提取幅度
     amps = zeros(n_leds, 1);
     freq_detected = zeros(n_leds, 1);
-    
+    search_width = max(5, freq_resolution * 2);
+
     for i = 1:n_leds
-        f_target = led_freqs(i);  % kHz
-        
-        % 在目标频率 ±2kHz 范围内找峰值
-        mask = (freq_axis >= f_target - 2) & (freq_axis <= f_target + 2);
+        f_target = led_freqs(i);
+        mask = (freq_axis >= f_target - search_width) & (freq_axis <= f_target + search_width);
         [max_val, max_idx] = max(fft_mag .* mask');
-        
         amps(i) = max_val;
         freq_detected(i) = freq_axis(max_idx);
     end
-    
-    %% 显示结果
-    fprintf('\nLED幅度提取结果:\n');
-    fprintf('%-6s %-12s %-12s %-12s\n', 'LED', '期望频率', '检测频率', '幅度');
-    fprintf('%s\n', repmat('-', 1, 45));
-    for i = 1:n_leds
-        fprintf('%-6d %-12.0f %-12.1f %-12.2f\n', ...
-            i, led_freqs(i), freq_detected(i), amps(i));
-    end
+
+    % 直接乘以V/div得到绝对强度
+    amps = amps * volt_div;
 end

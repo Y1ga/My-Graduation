@@ -21,7 +21,7 @@ function x = opt_gd(A, y, beta)
     alpha = 0.001;
 
     % 最大迭代次数
-    max_iter = 2000;
+    max_iter = 1e5;
 
     % 收敛阈值
     tol = 1e-6;
