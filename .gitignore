@@ -9,3 +9,4 @@ Paper-OTFE/process_data/checkpoints/best_model.pth
 Paper-OTFE/process_data/dataset/fdm_e2e_12led_300us_3000pts.mat
 # 专门针对图片中显示的路径进行忽略
 Paper-OTFE/process_data/dataset/
+paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat

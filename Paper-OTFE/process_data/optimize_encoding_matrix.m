@@ -1,4 +1,4 @@
-%% encoding_optimize：优化编码矩阵（多次初始化版本）
+%% encoding_optimize：优化编码矩阵（每个LED只能用一次）
 clear;
 clc;
 %% step 1: 读取原始光谱矩阵
@@ -6,16 +6,19 @@ wav = linspace(400, 700, 31);
 phi = load_mat("A_0115", "gt");
 plot(wav, phi);
 %% 
-optimize_encoding_matrix_multi(phi)
+optimize_encoding_matrix_unique_led(phi)
 
 %% 
-function optimize_encoding_matrix_multi(phi)
+function optimize_encoding_matrix_unique_led(phi)
     % ================= 设置参数 =================
     M = 12;             % LED 通道数 (Phi 的行数)
     N = 31;             % 光谱采样数 (Phi 的列数)
     K = 6;              % 测量次数 (E 的行数)
-    N_sample = 1e6;     % 每次运行的采样次数
+    N_sample = 1e5;     % 每次运行的采样次数
     N_runs = 10;        % 独立运行次数
+    
+    % 约束：每个LED只能用一次，即E的每列最多一个1
+    % 这意味着最多使用M个LED，分配到K次测量中
     
     % ================= 1. 数据准备 =================
     if nargin < 1 || isempty(phi)
@@ -36,10 +39,12 @@ function optimize_encoding_matrix_multi(phi)
     % ================= 2. 初始化全局最优变量 =================
     global_min_corr = inf;
     global_best_E = zeros(K, M);
-    all_runs_results = zeros(N_runs, 1);  % 记录每次运行的最优值
-    all_loss_history = zeros(N_sample, N_runs);  % 记录所有收敛曲线
+    all_runs_results = zeros(N_runs, 1);
+    all_loss_history = zeros(N_sample, N_runs);
     
     fprintf('========================================\n');
+    fprintf('编码矩阵优化（每个LED只能使用一次）\n');
+    fprintf('LED数: %d, 测量次数: %d\n', M, K);
     fprintf('开始 %d 次独立运行，每次 %d 采样\n', N_runs, N_sample);
     fprintf('========================================\n\n');
     
@@ -50,35 +55,28 @@ function optimize_encoding_matrix_multi(phi)
         fprintf('--- 第 %d/%d 次运行 ---\n', run, N_runs);
         run_tic = tic;
         
-        % 本次运行的局部最优
         local_min_corr = inf;
         local_best_E = zeros(K, M);
         loss_history = zeros(N_sample, 1);
         
-        % 蒙特卡洛搜索
         for i = 1:N_sample
-            % A. 生成随机二值矩阵 E
-            E_curr = randi([0, 1], K, M);
+            % 生成满足约束的编码矩阵
+            E_curr = generate_unique_led_encoding(K, M);
             
-            % 确保没有全零行
-            while any(sum(E_curr, 2) == 0)
-                E_curr = randi([0, 1], K, M);
-            end
-            
-            % B. 计算传感矩阵 A
+            % 计算传感矩阵 A
             A = E_curr * phi;
             
-            % C. 计算皮尔逊相关系数矩阵
+            % 计算皮尔逊相关系数矩阵
             R = corrcoef(A');
             
-            % D. 计算目标函数值
+            % 计算目标函数值
             abs_R = abs(R);
             abs_R(logical(eye(size(abs_R)))) = 0;
             sum_corr = sum(abs_R(:));
             num_off_diagonal = K * (K - 1);
             current_avg_corr = sum_corr / num_off_diagonal;
             
-            % E. 更新局部最优
+            % 更新局部最优
             if current_avg_corr < local_min_corr
                 local_min_corr = current_avg_corr;
                 local_best_E = E_curr;
@@ -89,13 +87,11 @@ function optimize_encoding_matrix_multi(phi)
         
         run_time = toc(run_tic);
         
-        % 记录本次运行结果
         all_runs_results(run) = local_min_corr;
         all_loss_history(:, run) = loss_history;
         
         fprintf('  本次最优相关系数: %.5f, 耗时: %.1f 秒\n', local_min_corr, run_time);
         
-        % 更新全局最优
         if local_min_corr < global_min_corr
             global_min_corr = local_min_corr;
             global_best_E = local_best_E;
@@ -129,27 +125,47 @@ function optimize_encoding_matrix_multi(phi)
     fprintf('\n全局最佳编码矩阵 E (%dx%d):\n', K, M);
     disp(global_best_E);
     
-    % ================= 5. 可视化 =================
-    figure('Position', [100, 100, 1200, 400]);
+    % 验证约束
+    fprintf('约束验证:\n');
+    fprintf('  每列和 (应<=1): %s\n', mat2str(sum(global_best_E, 1)));
+    fprintf('  每行和 (每次测量使用的LED数): %s\n', mat2str(sum(global_best_E, 2)'));
+    fprintf('  总共使用的LED数: %d / %d\n', sum(global_best_E(:)), M);
     
-    % 子图1：所有收敛曲线
-    subplot(1, 3, 1);
+    % 显示每次测量使用的LED编号
+    fprintf('\n每次测量使用的LED:\n');
+    for k = 1:K
+        led_used = find(global_best_E(k, :));
+        fprintf('  测量 %d: LED %s\n', k, mat2str(led_used));
+    end
+    
+    % ================= 5. 可视化 =================
+    figure('Position', [100, 100, 1400, 400]);
+    
+    % 子图1：编码矩阵可视化
+    subplot(1, 4, 1);
+    imagesc(global_best_E);
+    colormap(gca, [1 1 1; 0.2 0.6 0.9]);  % 白色=0, 蓝色=1
+    colorbar('Ticks', [0, 1]);
+    title('最优编码矩阵 E');
+    xlabel('LED 编号');
+    ylabel('测量次数');
+    axis equal tight;
+    set(gca, 'XTick', 1:M, 'YTick', 1:K);
+    
+    % 子图2：所有收敛曲线
+    subplot(1, 4, 2);
     plot(all_loss_history, 'LineWidth', 0.8);
     hold on;
-    % 找到最优的那次运行并高亮
     [~, best_run_idx] = min(all_runs_results);
     plot(all_loss_history(:, best_run_idx), 'k-', 'LineWidth', 2);
     hold off;
-    title('所有运行的收敛曲线');
+    title('收敛曲线');
     xlabel('采样次数');
     ylabel('平均相关系数');
-    legend_str = arrayfun(@(x) sprintf('Run %d', x), 1:N_runs, 'UniformOutput', false);
-    legend_str{best_run_idx} = [legend_str{best_run_idx} ' (最优)'];
-    legend(legend_str, 'Location', 'northeast', 'FontSize', 7);
     grid on;
     
-    % 子图2：各次运行最终结果柱状图
-    subplot(1, 3, 2);
+    % 子图3：各次运行结果
+    subplot(1, 4, 3);
     bar(all_runs_results);
     hold on;
     bar(best_run_idx, all_runs_results(best_run_idx), 'FaceColor', [0.8, 0.2, 0.2]);
@@ -160,28 +176,66 @@ function optimize_encoding_matrix_multi(phi)
     ylabel('最优相关系数');
     grid on;
     
-    % 子图3：最优传感矩阵相关系数热力图
-    subplot(1, 3, 3);
+    % 子图4：相关系数热力图
+    subplot(1, 4, 4);
     A_best = global_best_E * phi;
     R_best = corrcoef(A_best');
     imagesc(abs(R_best));
     colorbar;
-    title(sprintf('最优A的相关系数 (Avg=%.4f)', global_min_corr));
+    title(sprintf('相关系数 (Avg=%.4f)', global_min_corr));
     axis square;
     xlabel('测量索引');
     ylabel('测量索引');
     
-    sgtitle(sprintf('编码矩阵优化结果 (%d次运行, 每次%d采样)', N_runs, N_sample));
+    sgtitle(sprintf('编码矩阵优化 (每LED仅用一次, %d次运行)', N_runs));
     
     % ================= 6. 保存结果 =================
-    % 保存到工作区
     assignin('base', 'best_E', global_best_E);
     assignin('base', 'min_avg_corr', global_min_corr);
     assignin('base', 'all_runs_results', all_runs_results);
     assignin('base', 'all_loss_history', all_loss_history);
     
-    % 保存到文件
-    save_filename = sprintf('encoding_opt_result_%s.mat', datestr(now, 'yyyymmdd_HHMMSS'));
+    save_filename = sprintf('encoding_unique_led_%s.mat', datestr(now, 'yyyymmdd_HHMMSS'));
     save(save_filename, 'global_best_E', 'global_min_corr', 'all_runs_results', 'all_loss_history', 'phi');
     fprintf('\n结果已保存到: %s\n', save_filename);
+end
+%% 保存最佳值
+% A_hybrid_0115 = best_E * phi;
+% A = A_hybrid_0115 ./ max(A_hybrid_0115, [], 'all');
+% A_hybrid_0115 = A;
+% save_mat(A_hybrid_0115, "gt");
+%% 生成满足约束的编码矩阵（每个LED只能用一次）
+function E = generate_unique_led_encoding(K, M)
+    % K: 测量次数
+    % M: LED数量
+    % 约束: 每列最多一个1（每个LED只能用一次）
+    % 约束: 每行至少一个1（每次测量至少点亮一个LED）
+    
+    E = zeros(K, M);
+    
+    % 随机打乱LED顺序
+    led_order = randperm(M);
+    
+    % 确保每次测量至少有一个LED
+    % 先给每次测量分配一个LED
+    for k = 1:K
+        E(k, led_order(k)) = 1;
+    end
+    
+    % 剩余的LED随机分配到各次测量中
+    remaining_leds = led_order(K+1:end);
+    for led = remaining_leds
+        % 随机选择一次测量
+        k = randi(K);
+        E(k, led) = 1;
+    end
+    
+    % 或者：部分LED不使用（更灵活的方案）
+    % 以一定概率不使用某些LED
+    % for led = remaining_leds
+    %     if rand() > 0.3  % 70%概率使用
+    %         k = randi(K);
+    %         E(k, led) = 1;
+    %     end
+    % end
 end
