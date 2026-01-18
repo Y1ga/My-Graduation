@@ -3,19 +3,24 @@ clear;
 clc;
 %% step 1: 读取原始光谱矩阵
 wav = linspace(400, 700, 31);
-phi = load_mat("A_0115", "gt");
+phi = load_mat("A_0118", "gt");
 plot(wav, phi);
 %% 
-optimize_encoding_matrix_unique_led(phi)
-
+global_best_E = optimize_encoding_matrix_unique_led(phi);
+%% 保存最佳编码矩阵
+E_0118 = global_best_E;  % K×M = 4×12
+save_mat(E_0118, "gt");
+% 或者直接保存组合后的传感矩阵
+A_hybrid_0118 = global_best_E * phi;  % 4×31
+save_mat(A_hybrid_0118, "gt");
 %% 
-function optimize_encoding_matrix_unique_led(phi)
+function global_best_E = optimize_encoding_matrix_unique_led(phi)
     % ================= 设置参数 =================
     M = 12;             % LED 通道数 (Phi 的行数)
     N = 31;             % 光谱采样数 (Phi 的列数)
     K = 6;              % 测量次数 (E 的行数)
     N_sample = 1e5;     % 每次运行的采样次数
-    N_runs = 10;        % 独立运行次数
+    N_runs = 5;        % 独立运行次数
     
     % 约束：每个LED只能用一次，即E的每列最多一个1
     % 这意味着最多使用M个LED，分配到K次测量中
