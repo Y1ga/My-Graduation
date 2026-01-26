@@ -1,6 +1,7 @@
 %% FDM相位噪声分析
 % 分析振荡器相位噪声对FDM系统的影响
-% 相位噪声导致载波频谱展宽，可能引起邻道干扰
+% 图1: 时域信号对比 (无噪声 vs 不同相位噪声水平)
+% 图2: RMSE vs 相位噪声标准差
 clear; clc; close all;
 
 %% 相位噪声模型选择
@@ -10,55 +11,59 @@ clear; clc; close all;
 MODEL = 1;
 
 %% 参数设置
-% 相位噪声标准差 (弧度)
-% 典型值: 0.01-0.1 rad (低噪声), 0.1-0.5 rad (中等), >0.5 rad (高噪声)
-phase_noise_std_list = [0, 0.01, 0.05, 0.1, 0.2, 0.5, 1.0];
+% 相位噪声标准差 (弧度) - 最大0.1 rad
+phase_noise_std_list = [0, 0.01, 0.02, 0.05, 0.08, 0.1];
 
-%% 绘图设置 (与论文风格统一)
-FONTSIZE = 12;
-FONTSIZE_TICK = 10;
-FONTSIZE_LEGEND = 9;
-LINE_WIDTH = 1.0;
-MARKER_SIZE = 6;
+% 时域图显示的相位噪声水平
+phase_show_list = [0, 0.02, 0.05, 0.1];  % 用于时域图
 
-% 配色方案 (低饱和度)
-color_clean = [0.2, 0.2, 0.2];      % 深灰
-color_noisy = [0.7, 0.3, 0.3];      % 暗红
-color_rmse = [0.2, 0.4, 0.6];       % 深蓝
-color_psnr = [0.6, 0.3, 0.5];       % 紫色
-color_phase = [0.3, 0.5, 0.4];      % 深绿
+%% 绘图设置
+FIG_WIDTH = 600;
+FIG_HEIGHT = 500;
+FONTSIZE = 14;
+FONTSIZE_TICK = 12;
+FONTSIZE_LEGEND = 11;
+LINE_WIDTH = 1.2;
+MARKER_SIZE = 8;
+
+% 显示开关
+SHOW_GRID = false;  % true: 显示网格, false: 不显示
+
+% 配色方案
+color_clean = [0.15, 0.15, 0.15];     % 深黑 - 无噪声
+colors_phase = {
+    [0.15, 0.15, 0.15], ...           % 0 rad - 黑
+    [0.20, 0.50, 0.70], ...           % 0.02 rad - 蓝
+    [0.20, 0.65, 0.35], ...           % 0.05 rad - 绿
+    [0.80, 0.25, 0.25]};              % 0.1 rad - 红
+color_rmse = [0.20, 0.45, 0.75];      % RMSE曲线 - 蓝色
 
 %% 加载数据
 A0 = load_mat("led_0711", "gt");
-colorchecker = load_mat("colorchecker", "gt");
+colorchecker = load_mat("colorchecker_trans_0118", "gt");
 
 if size(A0,1) == 31, A0 = A0'; end
 if size(colorchecker,1) == 31, colorchecker = colorchecker'; end
 
-working_leds = [1,2,3,4,5,6,7,10,11,12];
+working_leds = [1,2,3,4,5,6,7,8,9,10,11,12];
 A0_working = A0(working_leds, :);
-x_gt = colorchecker(16, :)';
+x_gt = colorchecker(15, :)';
 y_theory = A0_working * x_gt;
 num_led = length(y_theory);
 
 %% 信号参数
-Fs = 1e6;           % 采样率 1 MHz
+Fs = 10e6;          % 采样率 10 MHz
 T = 100e-6;         % 采样时间 100 μs
 N = round(Fs * T);  % 采样点数
 t = (0:N-1) / Fs;   % 时间轴
-df = Fs / N;        % 频率分辨率
 
 % 载波频率 (自动选择)
-f_base = 40e3;
-f_spacing = 2e3;
-freqs_Hz = f_base + (0:num_led-1) * f_spacing * 5;  % 10kHz间隔
+[freqs_Hz, ~] = fdm_select_frequencies(num_led, 'T', T);
 
-%% 仿真不同相位噪声水平
+%% 仿真不同相位噪声水平 (用于RMSE曲线)
 n_test = length(phase_noise_std_list);
 rmse_list = zeros(n_test, 1);
-psnr_list = zeros(n_test, 1);
 y_error_list = zeros(n_test, 1);
-x_est_all = zeros(31, n_test);
 
 fprintf('============================================================\n');
 fprintf('Phase Noise Analysis\n');
@@ -70,13 +75,13 @@ switch MODEL
     case 3, fprintf('1/f Flicker Phase Noise\n');
 end
 fprintf('------------------------------------------------------------\n');
-fprintf('%10s %12s %12s %12s\n', 'σ_φ (rad)', 'y Error(%)', 'RMSE', 'PSNR(dB)');
-fprintf('%s\n', repmat('-', 1, 50));
+fprintf('%12s %15s %12s\n', 'σ_φ (rad)', 'Demod Err(%)', 'RMSE');
+fprintf('%s\n', repmat('-', 1, 42));
 
 for i = 1:n_test
     phase_std = phase_noise_std_list(i);
     
-    [v_clean, v_noisy, ~] = generate_fdm_with_phase_noise(...
+    [~, v_noisy, ~] = generate_fdm_with_phase_noise(...
         y_theory, freqs_Hz, t, phase_std, MODEL, Fs);
     
     params.Fs = Fs;
@@ -89,106 +94,101 @@ for i = 1:n_test
     y_error_list(i) = norm(y_exp - y_theory) / norm(y_theory) * 100;
     
     x_est = fdm_reconstruct(y_exp, A0_working, 'Method', 'tv');
-    [rmse_list(i), psnr_list(i)] = fdm_metrics(x_gt, x_est);
-    x_est_all(:, i) = x_est;
+    rmse_list(i) = fdm_metrics(x_gt, x_est);
     
-    fprintf('%10.2f %12.2f %12.4f %12.2f\n', ...
-        phase_std, y_error_list(i), rmse_list(i), psnr_list(i));
+    fprintf('%12.3f %15.2f %12.4f\n', phase_std, y_error_list(i), rmse_list(i));
 end
 
-%% 生成展示用信号 (中等相位噪声)
-phase_std_demo = 0.5;  % 0.5 rad 用于展示
-[v_clean_demo, v_noisy_demo, phi_noise_demo] = generate_fdm_with_phase_noise(...
-    y_theory, freqs_Hz, t, phase_std_demo, MODEL, Fs);
-
-% FFT
-V_clean = abs(fft(v_clean_demo)) / N * 2;
-V_noisy = abs(fft(v_noisy_demo)) / N * 2;
-f_axis = (0:N-1) * df / 1000;  % kHz
-
-%% 绘制综合图 (2行2列)
-fig = figure('Position', [50, 50, 1000, 800], 'Color', 'w');
+%% 图1: 时域信号对比
+fig1 = figure('Position', [100, 100, FIG_WIDTH, FIG_HEIGHT], 'Color', 'w');
+hold on; box on;
 
 % 时间轴
 t_us = t * 1e6;
-T_DISPLAY = 50;  % 显示50μs
-idx_display = t_us <= T_DISPLAY;
+T_START = 0;
+T_END = 10;  % 显示10μs
+idx_display = (t_us >= T_START) & (t_us <= T_END);
 
-% (a) 相位噪声时域波形
-subplot(2, 2, 1);
-plot(t_us, phi_noise_demo(1,:), '-', 'LineWidth', LINE_WIDTH, 'Color', color_phase);
-xlabel('Time (\mus)', 'FontSize', FONTSIZE);
-ylabel('Phase (rad)', 'FontSize', FONTSIZE);
-title(sprintf('(a) Phase Noise (\\sigma_\\phi = %.1f rad)', phase_std_demo), 'FontSize', FONTSIZE);
-set(gca, 'FontSize', FONTSIZE_TICK, 'LineWidth', 0.8);
-grid on; box on;
+% 生成并绘制不同相位噪声的信号
+h_lines = gobjects(length(phase_show_list), 1);
+legend_str = cell(length(phase_show_list), 1);
 
-% (b) 时域信号对比
-subplot(2, 2, 2);
-plot(t_us(idx_display), v_clean_demo(idx_display), '-', ...
-    'LineWidth', LINE_WIDTH, 'Color', color_clean, 'DisplayName', 'Clean');
-hold on;
-plot(t_us(idx_display), v_noisy_demo(idx_display), '-', ...
-    'LineWidth', LINE_WIDTH, 'Color', color_noisy, 'DisplayName', 'With Phase Noise');
-xlabel('Time (\mus)', 'FontSize', FONTSIZE);
-ylabel('Amplitude', 'FontSize', FONTSIZE);
-title('(b) Time Domain Signal', 'FontSize', FONTSIZE);
-legend('Location', 'best', 'FontSize', FONTSIZE_LEGEND);
-set(gca, 'FontSize', FONTSIZE_TICK, 'LineWidth', 0.8);
-grid on; box on;
-xlim([0, T_DISPLAY]);
+line_styles = {'-', '--', '-.', ':'};
 
-% (c) RMSE vs 相位噪声
-subplot(2, 2, 3);
+for k = 1:length(phase_show_list)
+    phase_std = phase_show_list(k);
+    
+    [v_clean, v_noisy, ~] = generate_fdm_with_phase_noise(...
+        y_theory, freqs_Hz, t, phase_std, MODEL, Fs);
+    
+    if phase_std == 0
+        v_plot = v_clean;
+        legend_str{k} = 'Noiseless';
+        lw = 1.8;
+    else
+        v_plot = v_noisy;
+        legend_str{k} = sprintf('\\sigma_\\phi = %.2f rad', phase_std);
+        lw = 1.2;
+    end
+    
+    h_lines(k) = plot(t_us(idx_display), v_plot(idx_display), line_styles{k}, ...
+        'LineWidth', lw, 'Color', colors_phase{k});
+end
+
+xlabel('Time (μs)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+ylabel('Amplitude (a.u.)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+legend(h_lines, legend_str, 'Location', 'best', 'FontSize', FONTSIZE_LEGEND, 'Box', 'off');
+set(gca, 'FontSize', FONTSIZE_TICK, 'FontName', 'Arial', 'LineWidth', 0.8);
+xlim([T_START, T_END]);
+if SHOW_GRID
+    grid on;
+    set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.4);
+end
+
+% 保存图1
+savename1 = 'fig_phase_noise_time_domain';
+print(fig1, savename1, '-dpng', '-r300');
+print(fig1, savename1, '-depsc', '-r300');
+fprintf('\nSaved: %s.png\n', savename1);
+
+%% 图2: RMSE vs 相位噪声
+fig2 = figure('Position', [750, 100, FIG_WIDTH, FIG_HEIGHT], 'Color', 'w');
+hold on; box on;
+
 plot(phase_noise_std_list, rmse_list, '-o', ...
     'LineWidth', LINE_WIDTH, 'MarkerSize', MARKER_SIZE, ...
     'Color', color_rmse, 'MarkerFaceColor', color_rmse);
-xlabel('Phase Noise \sigma_\phi (rad)', 'FontSize', FONTSIZE);
-ylabel('RMSE', 'FontSize', FONTSIZE);
-title('(c) RMSE vs Phase Noise', 'FontSize', FONTSIZE);
-set(gca, 'FontSize', FONTSIZE_TICK, 'LineWidth', 0.8);
-grid on; box on;
 
-% (d) 重建光谱对比
-subplot(2, 2, 4);
-wl = 400:10:700;
-plot(wl, x_gt, '-', 'LineWidth', LINE_WIDTH, 'Color', color_clean, 'DisplayName', 'Ground Truth');
-hold on;
-% 选择几个典型相位噪声水平
-idx_show = [1, 4, 7];  % 0, 0.1, 1.0 rad
-colors_spec = {[0.3, 0.6, 0.4], [0.6, 0.5, 0.2], [0.7, 0.3, 0.3]};
-for k = 1:length(idx_show)-1
-    idx = idx_show(k);
-    plot(wl, x_est_all(:, idx), '--', 'LineWidth', LINE_WIDTH, ...
-        'Color', colors_spec{k}, ...
-        'DisplayName', sprintf('\\sigma_\\phi = %.1f rad', phase_noise_std_list(idx)));
+xlabel('Phase noise standard deviation \sigma_\phi (rad)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+ylabel('RMSE', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+set(gca, 'FontSize', FONTSIZE_TICK, 'FontName', 'Arial', 'LineWidth', 0.8);
+xlim([0, max(phase_noise_std_list)]);
+ylim([0, 0.02]);  % Y轴最大值0.02
+if SHOW_GRID
+    grid on;
+    set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.4);
 end
-xlabel('Wavelength (nm)', 'FontSize', FONTSIZE);
-ylabel('Reflectance', 'FontSize', FONTSIZE);
-title('(d) Reconstructed Spectrum', 'FontSize', FONTSIZE);
-legend('Location', 'best', 'FontSize', FONTSIZE_LEGEND);
-set(gca, 'FontSize', FONTSIZE_TICK, 'LineWidth', 0.8);
-grid on; box on;
-xlim([400, 700]);
 
-% 保存
-savename = 'fig_phase_noise';
-print(fig, savename, '-dpng', '-r300');
-print(fig, savename, '-depsc', '-r300');
-fprintf('\nSaved: %s.png and %s.eps\n', savename, savename);
+% 保存图2
+savename2 = 'fig_phase_noise_rmse';
+print(fig2, savename2, '-dpng', '-r300');
+print(fig2, savename2, '-depsc', '-r300');
+fprintf('Saved: %s.png\n', savename2);
 
-%% 结论
+%% 打印结论
 fprintf('\n============================================================\n');
-fprintf('Conclusion\n');
+fprintf('Summary\n');
 fprintf('============================================================\n');
-fprintf('Phase noise causes carrier spectrum broadening.\n');
-fprintf('  - σ_φ < 0.1 rad: Negligible impact (RMSE ≈ %.4f)\n', rmse_list(4));
-fprintf('  - σ_φ = 0.5 rad: Moderate degradation (RMSE = %.4f)\n', rmse_list(6));
-fprintf('  - σ_φ = 1.0 rad: Severe degradation (RMSE = %.4f)\n', rmse_list(7));
-fprintf('\nRecommendations:\n');
-fprintf('  - Use high-quality oscillators (σ_φ < 0.1 rad)\n');
-fprintf('  - Increase carrier spacing to reduce adjacent channel interference\n');
-fprintf('  - Use phase-locked loop (PLL) for clock synchronization\n');
+fprintf('Phase noise range: 0 - %.2f rad\n', max(phase_noise_std_list));
+fprintf('RMSE range: %.4f - %.4f\n', min(rmse_list), max(rmse_list));
+fprintf('\nConclusion:\n');
+if rmse_list(end) - rmse_list(1) < 0.01
+    fprintf('  Phase noise (σ_φ ≤ 0.1 rad) has minimal impact on reconstruction.\n');
+else
+    fprintf('  Phase noise degrades reconstruction quality.\n');
+    fprintf('  RMSE increases by %.1f%% at σ_φ = 0.1 rad.\n', ...
+        (rmse_list(end) - rmse_list(1)) / rmse_list(1) * 100);
+end
 
 %% ==================== 辅助函数 ====================
 
@@ -240,15 +240,19 @@ function [v_signal, v_noisy, phi_noise_all] = generate_fdm_with_phase_noise(...
     v_noisy = zeros(1, N);
     phi_noise_all = zeros(num_led, N);
     
-    rng(42);
+    rng(42);  % 固定种子保证可复现
     
     for i = 1:num_led
-        phi_0 = 2 * pi * rand();
+        phi_0 = 2 * pi * rand();  % 随机初始相位
+        
+        % 无噪声信号
         v_signal = v_signal + amplitudes(i) * sin(2*pi*freqs_Hz(i)*t + phi_0);
         
+        % 生成相位噪声
         phi_n = generate_phase_noise(phase_std, N, model, Fs);
         phi_noise_all(i, :) = phi_n;
         
+        % 带相位噪声的信号
         v_noisy = v_noisy + amplitudes(i) * sin(2*pi*freqs_Hz(i)*t + phi_0 + phi_n);
     end
 end

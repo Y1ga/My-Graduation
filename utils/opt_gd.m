@@ -71,8 +71,8 @@ function x = opt_gd(A, y, beta)
 
 
     % 输出结果
-    disp('优化解:');
-    disp(x);
+    % disp('优化解:');
+    % disp(x);
     disp('目标函数值:');
     disp(norm(A * x - y, 2) + beta1 * norm(x, 1) + beta2 * norm(x, 2) + beta3 * sqrt(sum(diff(x) .^ 2)));
     disp('迭代次数:');

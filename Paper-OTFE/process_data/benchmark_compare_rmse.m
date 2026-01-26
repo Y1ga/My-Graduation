@@ -46,7 +46,7 @@ for idx = 1:n_colors
     rgb_P_all(idx, :) = double(spec2rgb_simple(x_P))' / 255;
     rgb_gt_all(idx, :) = double(spec2rgb_simple(x_gt))' / 255;
 end
-
+rgb_P_all_255 = 255 * rgb_P_all;
 %% Figure 1: RMSE柱状图
 figure('Position', [100, 100, 800, 400]);
 bar(1:n_colors, rmse_all, 'FaceColor', [0.3, 0.6, 0.9]);
@@ -103,12 +103,12 @@ for idx = 1:n_colors
     % 预测RGB框
     annotation('rectangle', ...
         [p_box_x, p_box_y, box_width, box_height], ...
-        'FaceColor', rgb_P_all(idx, :), 'EdgeColor', 'b', 'LineWidth', 1);
+        'FaceColor', rgb_P_all(idx, :),  'LineWidth', 1);
     
     % 真实RGB框
     annotation('rectangle', ...
         [gt_box_x, gt_box_y, box_width, box_height], ...
-        'FaceColor', rgb_gt_all(idx, :), 'EdgeColor', 'r', 'LineWidth', 1);
+        'FaceColor', rgb_gt_all(idx, :), 'LineWidth', 1);
     
     % 预测标签
     annotation('textbox', [p_box_x, p_box_y + box_height, box_width, label_height], ...

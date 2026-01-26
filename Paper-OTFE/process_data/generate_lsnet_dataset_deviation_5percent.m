@@ -9,18 +9,20 @@ clear; clc; close all;
 data_dir = 'W:\dataset\benchmark\merged_data\';
 cave_file = 'CAVE_1D.mat';
 kaist_file = 'KAIST_1D.mat';
+biospecimen_file = 'biospecimen.mat';
 
 % 采样数量
-N_train_samples = 100000;
+N_cave_samples = 100000;       % CAVE采样数量
+N_biospecimen_samples = 0; % Biospecimen采样数量 (设为0则不使用)
 N_val_samples = 10000;
 N_test_samples = 50000;
 
 % 噪声参数
-target_rel_error = 0;  % 相对误差 (0=无噪声, 0.05=5%, 0.1=10%)
+target_rel_error = 0.2;  % 相对误差 (0=无噪声, 0.05=5%, 0.1=10%)
 noise_sigma = target_rel_error / sqrt(2/pi);
 
 % ==================== 数据增强开关 ====================
-AUGMENT_BRIGHTNESS = false;   % 亮度增强
+AUGMENT_BRIGHTNESS = true;   % 亮度增强
 AUGMENT_COLORCHECKER = false; % 加入ColorChecker
 
 % 亮度增强参数
@@ -37,12 +39,14 @@ rng(42);
 %% ==================== 加载测量矩阵 ====================
 fprintf('========== 配置信息 ==========\n');
 fprintf('噪声水平: %.0f%%\n', target_rel_error * 100);
+fprintf('CAVE采样: %d\n', N_cave_samples);
+fprintf('Biospecimen采样: %d\n', N_biospecimen_samples);
 fprintf('亮度增强: %s\n', mat2str(AUGMENT_BRIGHTNESS));
 fprintf('ColorChecker增强: %s\n', mat2str(AUGMENT_COLORCHECKER));
 fprintf('==============================\n\n');
 
 fprintf('========== 加载测量矩阵 ==========\n');
-A = load_mat("A_hybrid_0115", "gt");  % 6×31
+A = load_mat("led_pd_0118", "gt")';  % 6×31
 [K, n_channels] = size(A);
 fprintf('A: [%d × %d]\n', K, n_channels);
 
@@ -61,6 +65,22 @@ for i = 1:length(fn)
 end
 N_cave = size(cave_spectra, 1);
 fprintf('  CAVE: %d × %d\n', size(cave_spectra));
+%% 
+
+% Biospecimen
+if N_biospecimen_samples > 0
+    fprintf('加载Biospecimen...\n');
+    bio_data = load(fullfile(data_dir, biospecimen_file));
+    fn = fieldnames(bio_data);
+    for i = 1:length(fn)
+        if numel(bio_data.(fn{i})) > 1000
+            biospecimen_spectra = double(bio_data.(fn{i}));
+            break;
+        end
+    end
+    N_biospecimen = size(biospecimen_spectra, 1);
+    fprintf('  Biospecimen: %d × %d\n', size(biospecimen_spectra));
+end
 
 % KAIST
 fprintf('加载KAIST...\n');
@@ -89,14 +109,27 @@ fprintf('\n========== 数据处理 ==========\n');
 
 % CAVE采样
 if AUGMENT_BRIGHTNESS
-    n_cave_sample = min(N_train_samples / n_brightness_levels, N_cave);
+    n_cave_sample = min(N_cave_samples / n_brightness_levels, N_cave);
 else
-    n_cave_sample = min(N_train_samples, N_cave);
+    n_cave_sample = min(N_cave_samples, N_cave);
 end
 idx_cave = randperm(N_cave, round(n_cave_sample));
 cave_sampled = cave_spectra(idx_cave, :);
 fprintf('CAVE采样: %d\n', size(cave_sampled, 1));
 clear cave_spectra cave_data;
+
+% Biospecimen采样
+if N_biospecimen_samples > 0
+    if AUGMENT_BRIGHTNESS
+        n_bio_sample = min(N_biospecimen_samples / n_brightness_levels, N_biospecimen);
+    else
+        n_bio_sample = min(N_biospecimen_samples, N_biospecimen);
+    end
+    idx_bio = randperm(N_biospecimen, round(n_bio_sample));
+    biospecimen_sampled = biospecimen_spectra(idx_bio, :);
+    fprintf('Biospecimen采样: %d\n', size(biospecimen_sampled, 1));
+    clear biospecimen_spectra bio_data;
+end
 
 % KAIST作为测试集
 idx_kaist = randperm(N_kaist, min(N_test_samples, N_kaist));
@@ -106,10 +139,27 @@ clear kaist_spectra kaist_data;
 % 亮度增强
 if AUGMENT_BRIGHTNESS
     cave_processed = augment_spectra(cave_sampled, n_brightness_levels);
-    fprintf('亮度增强: %d → %d\n', size(cave_sampled, 1), size(cave_processed, 1));
+    fprintf('CAVE亮度增强: %d → %d\n', size(cave_sampled, 1), size(cave_processed, 1));
+    
+    if N_biospecimen_samples > 0
+        biospecimen_processed = augment_spectra(biospecimen_sampled, n_brightness_levels);
+        fprintf('Biospecimen亮度增强: %d → %d\n', size(biospecimen_sampled, 1), size(biospecimen_processed, 1));
+    end
 else
     cave_processed = cave_sampled;
     fprintf('亮度增强: 禁用\n');
+    if N_biospecimen_samples > 0
+        biospecimen_processed = biospecimen_sampled;
+    end
+end
+
+% 合并CAVE和Biospecimen
+if N_biospecimen_samples > 0
+    all_train_spectra = [cave_processed; biospecimen_processed];
+    fprintf('合并: CAVE(%d) + Biospecimen(%d) = %d\n', ...
+        size(cave_processed, 1), size(biospecimen_processed, 1), size(all_train_spectra, 1));
+else
+    all_train_spectra = cave_processed;
 end
 
 % ColorChecker增强
@@ -122,9 +172,8 @@ if AUGMENT_COLORCHECKER
         end
     end
     fprintf('ColorChecker: 48 × %d = %d\n', n_colorchecker_copies, size(cc_augmented, 1));
-    all_train_spectra = [cave_processed; cc_augmented];
+    all_train_spectra = [all_train_spectra; cc_augmented];
 else
-    all_train_spectra = cave_processed;
     fprintf('ColorChecker: 禁用\n');
 end
 
@@ -132,7 +181,8 @@ end
 idx_shuffle = randperm(size(all_train_spectra, 1));
 all_train_spectra = all_train_spectra(idx_shuffle, :);
 
-n_train = min(N_train_samples, size(all_train_spectra, 1) - N_val_samples);
+N_train_samples = size(all_train_spectra, 1) - N_val_samples;
+n_train = max(N_train_samples, 0);
 n_val = min(N_val_samples, size(all_train_spectra, 1) - n_train);
 
 Y_train = all_train_spectra(1:n_train, :);
@@ -162,6 +212,7 @@ X_test = single(max(X_test, 0));
 
 % 归一化
 X_max = max(X_train(:));
+X_max = 1;
 X_train = X_train / X_max;
 X_val = X_val / X_max;
 X_test = X_test / X_max;
@@ -184,7 +235,9 @@ config = struct(...
     'X_max', X_max, ...
     'target_rel_error', target_rel_error, ...
     'augment_brightness', AUGMENT_BRIGHTNESS, ...
-    'augment_colorchecker', AUGMENT_COLORCHECKER);
+    'augment_colorchecker', AUGMENT_COLORCHECKER, ...
+    'N_cave_samples', N_cave_samples, ...
+    'N_biospecimen_samples', N_biospecimen_samples);
 
 if ~exist(save_dir, 'dir'), mkdir(save_dir); end
 
@@ -222,8 +275,10 @@ saveas(gcf, fullfile(save_dir, 'dataset_visualization.png'));
 fprintf('\n========== 完成 ==========\n');
 fprintf('输入: %d×1, 输出: %d×1\n', K, n_channels);
 fprintf('噪声: %.0f%%\n', target_rel_error * 100);
+fprintf('CAVE: %d, Biospecimen: %d\n', N_cave_samples, N_biospecimen_samples);
 fprintf('亮度增强: %s\n', mat2str(AUGMENT_BRIGHTNESS));
 fprintf('ColorChecker: %s\n', mat2str(AUGMENT_COLORCHECKER));
+fprintf('训练集总数: %d\n', size(Y_train, 1));
 fprintf('文件: %s\n', save_name);
 fprintf('============================\n');
 

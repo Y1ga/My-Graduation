@@ -8,7 +8,7 @@ x = colorchecker(:, idx);
 %% 
 path = "./data/PD-01-18/J/";
 duration = 100e-5;
-k_A = read_rigol_wfm(path+"新建文件-3.wfm", 1e9, duration);
+k_A = read_rigol_wfm(path+"新建文件-1.wfm", 1e9, duration);
 A = k_A .* A0;
 % A_0118 = A;
 % save_mat(A_0118, "gt");

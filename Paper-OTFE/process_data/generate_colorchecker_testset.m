@@ -4,7 +4,7 @@ clc;
 
 %% ==================== 路径配置 ====================
 DATA_DIR = 'W:\Github\My-Repository\My-Graduation\paper-02\generate_dataset';
-CONFIG_FILE = 'spectral_6in_31out_train90k_noise0.mat';  % 训练数据集配置
+CONFIG_FILE = 'spectral_12in_31out_train90k_noise10.mat';  % 训练数据集配置
 
 %% 加载数据
 fprintf('========== 加载数据 ==========\n');
@@ -21,7 +21,7 @@ fprintf('ColorChecker 转置后: %d × %d (色块×通道)\n', size(colorchecker
 
 %% 加载测量矩阵和配置
 fprintf('\n========== 加载配置 ==========\n');
-A = load_mat("A_hybrid_0115", "gt");  % 6×31
+A = load_mat("led_pd_0118", "gt")';   % 6×31
 [K, n_channels] = size(A);
 
 config_path = fullfile(DATA_DIR, CONFIG_FILE);
