@@ -9,7 +9,7 @@ colorchecker = load_mat("colorchecker_gt", "gt");
 path = "./data/PD-01-04/";
 
 %% 路径和参数设置
-duration = 350e-6;
+duration = 250e-6;
 % 读取校准系数
 k_A = read_rigol_wfm_power(path + "新建文件-1.wfm", 1e9, duration);
 A = k_A .* A0;
@@ -37,7 +37,7 @@ for idx = 1:n_colors
     y_theory_norm = norm_1(y_theory);
     y_measured_norm = norm_1(y_measured); 
     rel_error = abs(y_theory_norm - y_measured_norm) ./ abs(y_theory_norm);  % 注意：分母用y_theory更合理
-    valid_ch_mask = rel_error <= 0.2;  % 相对误差 <= 10%
+    valid_ch_mask = rel_error <= 1;  % 相对误差 <= 10%
     n_valid_ch = sum(valid_ch_mask);
     % 只用有效通道进行重建
     a_valid = a(valid_ch_mask, :);

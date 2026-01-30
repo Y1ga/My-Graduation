@@ -29,7 +29,7 @@ y_theory = A0_working * x_gt;
 
 %% 统一设置
 FIG_WIDTH = 600;
-FIG_HEIGHT = 600;
+FIG_HEIGHT = 400;
 FONTSIZE = 16;
 FONTSIZE_LEGEND = FONTSIZE - 4;
 FONTSIZE_TICK = FONTSIZE - 2;
@@ -163,16 +163,17 @@ if strcmp(MODE, 'B') || strcmpi(MODE, 'b')
     USE_VIVID_COLOR = true;  % true: 鲜艳配色, false: 低饱和度配色
     SHOW_GRID = false;        % true: 显示网格线, false: 不显示网格线
     USE_DB_DISPLAY = true;    % true: 图例显示dB, false: 显示倍数
-    T_END = 20;               % X轴最大值 (μs): 10, 20, 50, 100 等
+    T_END = 50;              % X轴最大值 (μs): 需要足够长才能看到PWM周期(50μs)
     
     % 各噪声类型的强度（相对信号的倍数）
+    % RATIO = 10 对应 SNR = -20*log10(10) = -20 dB
     RATIO_DC = 10;        % DC环境光倍数
     RATIO_PWM = 10;       % PWM调光噪声倍数
     RATIO_SMPS = 10;      % SMPS开关噪声倍数
     
     % 噪声频率参数
-    PWM_FREQ = 20e3;      % PWM频率 20kHz
-    SMPS_FREQ = 100e3;    % SMPS频率 100kHz
+    PWM_FREQ = 20e3;      % PWM频率 20kHz (周期50μs)
+    SMPS_FREQ = 100e3;    % SMPS频率 100kHz (周期10μs)
     
     % 局部放大时间范围 (μs)
     T_START = 0;    % 起始时间
@@ -250,9 +251,9 @@ if strcmp(MODE, 'B') || strcmpi(MODE, 'b')
         SNR_SMPS = -20*log10(RATIO_SMPS);
         legend([h_clean, h_dc, h_pwm, h_smps], ...
             {'Noiseless', ...
-             sprintf('DC noise (SNR = %.0f dB)', SNR_DC), ...
-             sprintf('20 kHz PWM noise (SNR = %.0f dB)', SNR_PWM), ...
-             sprintf('100 kHz SMPS noise (SNR = %.0f dB)', SNR_SMPS)}, ...
+             sprintf('DC noise'), ...
+             sprintf('20 kHz PWM noise'), ...
+             sprintf('100 kHz SMPS noise')}, ...
             'Location', 'best', 'FontSize', FONTSIZE_LEGEND, 'Box', 'off');
     else
         legend([h_clean, h_dc, h_pwm, h_smps], ...

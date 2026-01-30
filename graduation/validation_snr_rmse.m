@@ -22,8 +22,8 @@ x_gt = colorchecker(15, :)';  % 31 x 1
 y_theory = A0_working * x_gt;  % 12 x 1
 wavelengths = linspace(400, 700, 31);
 
-FIG_WIDTH = 800;
-FIG_HEIGHT = 600;
+FIG_WIDTH = 600;
+FIG_HEIGHT = 400;
 
 %% 配色方案
 colors_three = [
@@ -197,9 +197,9 @@ elseif strcmp(MODE, 'B') || strcmpi(MODE, 'b')
     end
     
     % 绘图
-    FONTSIZE = 18;
-    FONTSIZE_LEGEND = FONTSIZE - 4;
-    FONTSIZE_TICK = FONTSIZE - 2;
+    FONTSIZE = 16;
+    FONTSIZE_LEGEND = FONTSIZE - 2;
+    FONTSIZE_TICK = FONTSIZE - 1;
     
     fig = figure('Position', [100, 100, FIG_WIDTH, FIG_HEIGHT], 'Color', 'w');
     hold on; box on;
@@ -323,9 +323,9 @@ elseif strcmp(MODE, 'C') || strcmpi(MODE, 'c')
     end
     
     % 绘图
-    FONTSIZE = 18;
-    FONTSIZE_LEGEND = FONTSIZE - 4;
-    FONTSIZE_TICK = FONTSIZE - 2;
+    FONTSIZE = 16;
+    FONTSIZE_LEGEND = FONTSIZE - 2;
+    FONTSIZE_TICK = FONTSIZE - 1;
     
     colors_modeA = [0.20, 0.45, 0.70; 0.70, 0.25, 0.25; 0.30, 0.60, 0.30];
     colors_modeB = [0.50, 0.70, 0.90; 0.90, 0.60, 0.60; 0.60, 0.80, 0.60];
@@ -349,10 +349,10 @@ elseif strcmp(MODE, 'C') || strcmpi(MODE, 'c')
     
     xlabel('SNR (dB)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
     ylabel('RMSE', 'FontSize', FONTSIZE, 'FontName', 'Arial');
-    
+    ylim([0, max(rmse_inband) * 1.2]);
     leg = legend([h1, h2, h3, h4, h5, h6], ...
-        {'AWGN', 'In-band noise', '100 Hz noise', ...
-         'DC noise', '20 kHz PWM noise', '100 kHz SMPS noise'}, ...
+        {'AWGN', 'In-band', '100 Hz', ...
+         'DC', '20 kHz PWM', '100 kHz SMPS'}, ...
         'Location', 'northeast', 'FontSize', FONTSIZE_LEGEND, 'NumColumns', 2);
     leg.Box = 'off';
     
