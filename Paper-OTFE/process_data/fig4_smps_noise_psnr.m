@@ -44,10 +44,10 @@ plot(ax, noise_selected2, psnr_selected2, '--s', ... % Line with circle markers
 
 h_gt = gcf;
 FONT_SIZE = 16;
-xlabel('SNR (dB)', 'FontSize', 11);
-ylabel('RMSE', 'FontSize', 11);
+xlabel('SNR (dB)', 'FontSize', FONT_SIZE);
+ylabel('RMSE', 'FontSize', FONT_SIZE);
 set(gca, 'XDir', 'reverse');
-h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 14]);
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15]);
 %% 
 % 光谱重建对比图
 wav = linspace(400, 700, 31);
@@ -84,16 +84,16 @@ hold off;
 
 % 图例
 legend([h_gt; h_pred], ['GT'; pred_names(1:size(x_pred_double_selected, 1))], ...
-    'Location', 'best', 'FontSize', 9);
+    'Location', 'best', 'FontSize', FONT_SIZE-2);
 
 % 坐标轴设置
 xlim([400, 700]);
 ylim([0, 100]);
-xlabel('Wavelength (nm)', 'FontSize', 11);
-ylabel('Transmittance (%)', 'FontSize', 11);
+xlabel('Wavelength (nm)', 'FontSize', FONT_SIZE);
+ylabel('Transmittance (%)', 'FontSize', FONT_SIZE);
 grid on;
 box on;
 set(gca, 'XDir', 'normal');
 h_gt = gcf;
 FONT_SIZE = 16;
-h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 14]);
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15]);

@@ -15,11 +15,22 @@ fs = 1e9;
 duty_cycle = 10;
 downsampling_rate = 100;
 signal_path = path+num2str(file_signal_idx)+".wfm";
+noise_path = path+num2str(file_noise_idx)+".wfm";
+[~, v_noise] = read_rigol_wfm_sampled(noise_path, fs, duration, duty_cycle, downsampling_rate);
 [t, v_signal] = read_rigol_wfm_sampled(signal_path, fs, duration, duty_cycle, downsampling_rate);
 [y_signal, ~, freq_detected] = read_rigol_wfm(signal_path, fs, duration);
 t = t * 1e6;
 plot(t, v_signal,'Color', [0.85, 0.45, 0.40]);
-hold on;
+xlabel('Time (μs)');
+ylabel('Voltage (a.u.)');
+legend('SNR: 23.11dB');
+h_gt = gcf;
+FONT_SIZE = 16;
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [16, 12], show_legend);
+ylim([0, max(v_noise)]);
+hold off;
+%%
+
 file_noise_idx = 28;
 noise_path = path+num2str(file_noise_idx)+".wfm";
 [~, v_noise] = read_rigol_wfm_sampled(noise_path, fs, duration, duty_cycle, downsampling_rate);
@@ -27,11 +38,12 @@ noise_path = path+num2str(file_noise_idx)+".wfm";
 plot(t, v_noise,'Color', [0.30, 0.50, 0.70]);
 xlabel('Time (μs)');
 ylabel('Voltage (a.u.)');
-legend('SNR: 23.11dB', 'SNR: -11.77dB');
-FONT_SIZE = 14;
+legend('SNR: -11.77dB');
+FONT_SIZE = 16;
 show_legend = true;
 h_gt = gcf;
-h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 12], show_legend);
+ylim([0, max(v_noise)]);
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend);
 %% 画频域图
 do_plot = true;
 freq_max = 500;
@@ -42,7 +54,7 @@ FONT_SIZE = 16;
 % xlabel('Noise-to-Signal Ratio', 'FontSize', 11);
 % ylabel('PSNR (dB)', 'FontSize', 11);
 show_legend = false;
-h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [24, 14], show_legend);
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend);
 %% 画信噪比-RMSE曲线
 model_dir_path = "W:\Github\My-Repository\LiteSpectralNet\runs\";
 model_path = "20260121_154837_spectral_12in_31out_train90k_noise0\";

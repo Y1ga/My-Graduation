@@ -1,0 +1,8 @@
+Data file: spectral_12in_31out_train90k_noise20.mat
+Batch size: 2000
+Epochs: 2001
+LR: 0.001
+Early stopping: True, patience=10
+Train size: 90000
+Input dim: 12
+Output dim: 31
