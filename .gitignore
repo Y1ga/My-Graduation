@@ -10,8 +10,16 @@ paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
 Paper-OTFE/process_data/checkpoints/best_model.pth
 Paper-OTFE/process_data/dataset/fdm_e2e_12led_300us_3000pts.mat
 Paper-OTFE/process_data/dataset/
+<<<<<<< Updated upstream
 
 # 论文与文档 (只保留了最新的版本)
 Paper-OTFE/files/0204/paper-OTFE-0204-v1_tbguo.docx
 Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
 graduation/0206/fig/毕业论文-0206.pptx
+=======
+paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
+Paper-OTFE/process_data/data/~$spec-26-01-18.xlsx
+Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
+Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
+Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
+>>>>>>> Stashed changes
