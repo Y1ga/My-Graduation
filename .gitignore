@@ -1,9 +1,14 @@
 # 数据集相关
 paper-02/generate_dataset/fdm_cave100k_kaist50k.mat
+# 数据集相关
+paper-02/generate_dataset/fdm_cave100k_kaist50k.mat
 paper-02/generate_dataset_legacy/fdm_cave100k_kaist50k.mat
 paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct.mat
 paper-02/generate_dataset/fdm_e2e_cave124k_kaist50k_noise5pct.mat
 paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct_aug.mat
+paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
+
+# 实验过程与模型
 paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
 
 # 实验过程与模型
@@ -17,10 +22,33 @@ Paper-OTFE/files/0204/paper-OTFE-0204-v1_tbguo.docx
 Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
 graduation/0206/fig/毕业论文-0206.pptx
 =======
+<<<<<<< Updated upstream
+
+# 论文与文档 (只保留了最新的版本)
+Paper-OTFE/files/0204/paper-OTFE-0204-v1_tbguo.docx
+Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
+graduation/0206/fig/毕业论文-0206.pptx
+=======
 paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
 Paper-OTFE/process_data/data/~$spec-26-01-18.xlsx
 Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
 Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
+Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/~$毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206 \[自动保存的\].pptx
+graduation/0206/fig/毕业论文-0206.pptx
+Paper-OTFE/process_data/fig_ambient_noise_comparison.eps
+Paper-OTFE/process_data/fig_ambient_noise_comparison.png
+# 忽略这个文件夹下所有的 eps 和 png
+Paper-OTFE/process_data/*.eps
+Paper-OTFE/process_data/*.png
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
 Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
 <<<<<<< Updated upstream
 >>>>>>> Stashed changes
@@ -28,4 +56,4 @@ Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
 >>>>>>> Stashed changes
 graduation/0206/fig/毕业论文-0206.pptx
 Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
-Paper-OTFE/files/0204/paper-OTFE-0204-v1_tbguo.docx
+
