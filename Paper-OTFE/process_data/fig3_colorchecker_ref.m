@@ -30,7 +30,7 @@ figure('Position',[0, 0, 1800, 900]);
 FONT_SIZE = 12;
 h_fig = gcf;
 for idx = 1:n_colors
-    subplot(4, 6, idx);
+    subplot(8, 3, idx);
     hold on;
     
     % 绘制光谱
