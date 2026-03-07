@@ -1,5 +1,7 @@
 # 数据集相关
 paper-02/generate_dataset/fdm_cave100k_kaist50k.mat
+# 数据集相关
+paper-02/generate_dataset/fdm_cave100k_kaist50k.mat
 paper-02/generate_dataset_legacy/fdm_cave100k_kaist50k.mat
 paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct.mat
 paper-02/generate_dataset/fdm_e2e_cave124k_kaist50k_noise5pct.mat
@@ -7,9 +9,19 @@ paper-02/generate_dataset/fdm_e2e_cave100k_kaist50k_noise5pct_aug.mat
 paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
 
 # 实验过程与模型
+paper-02/generate_dataset/spectral_6in_31out_train7592k_noise0_full.mat
+
+# 实验过程与模型
 Paper-OTFE/process_data/checkpoints/best_model.pth
 Paper-OTFE/process_data/dataset/fdm_e2e_12led_300us_3000pts.mat
 Paper-OTFE/process_data/dataset/
+<<<<<<< Updated upstream
+
+# 论文与文档 (只保留了最新的版本)
+Paper-OTFE/files/0204/paper-OTFE-0204-v1_tbguo.docx
+Paper-OTFE/files/SH2-final-润色-zyj-毕业论文-tbguo-v2-0128(1).docx
+graduation/0206/fig/毕业论文-0206.pptx
+=======
 <<<<<<< Updated upstream
 
 # 论文与文档 (只保留了最新的版本)
@@ -36,6 +48,12 @@ Paper-OTFE/process_data/*.eps
 Paper-OTFE/process_data/*.png
 graduation/0206/fig/毕业论文-0206.pptx
 graduation/0206/fig/毕业论文-0206.pptx
+graduation/0206/fig/毕业论文-0206.pptx
+Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 graduation/0206/fig/毕业论文-0206.pptx
 Paper-OTFE/files/0131/paper-OTFE-0131-v1_tbguo.docx
 
