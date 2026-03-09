@@ -55,6 +55,8 @@ NEXT_LED_CYCLE = [7, 10, 11]  # LED8, LED11, LED12
 DEFAULT_EXPOSURE_US = 10000  # 10ms
 DEFAULT_GAIN = 0
 DEFAULT_IMG_TYPE = "RGB24"
+DEFAULT_WB_R = 52
+DEFAULT_WB_B = 95
 
 # 默认 ROI (ASI 585MC: 3840×2160)
 DEFAULT_ROI_X = 900
@@ -240,6 +242,9 @@ class CameraManager:
         self.set_gain(DEFAULT_GAIN)
         self.set_exposure(DEFAULT_EXPOSURE_US)
         self.set_image_type(DEFAULT_IMG_TYPE)
+        # 白平衡
+        self.camera.set_control_value(asi.ASI_WB_R, DEFAULT_WB_R)
+        self.camera.set_control_value(asi.ASI_WB_B, DEFAULT_WB_B)
 
     def close(self):
         self.stop_video()
@@ -344,9 +349,7 @@ class CameraManager:
 
         if self._last_frame is not None:
             frame = self._last_frame.copy()
-            if frame.ndim == 3 and frame.shape[2] == 3:
-                frame = frame[:, :, ::-1]  # RGB → BGR for cv2
-            cv2.imwrite(path, frame)
+            cv2.imwrite(path, frame)  # BGR直接存
         elif self.camera and not self._streaming:
             self.camera.capture(filename=path)
         else:
@@ -392,17 +395,15 @@ class CameraManager:
                 self.start_video()
 
     def capture_save_rgb(self, path: str):
-        """保存RGB彩色图"""
+        """保存RGB彩色图（zwoasi返回BGR，cv2.imwrite需要BGR，直接存）"""
         import cv2
 
         if self._last_frame is None:
             raise RuntimeError("无可用帧")
         frame = self._last_frame.copy()
         if frame.ndim == 3 and frame.shape[2] == 3:
-            bgr = frame[:, :, ::-1]  # RGB → BGR for cv2
-            cv2.imwrite(path, bgr)
+            cv2.imwrite(path, frame)  # 已经是BGR，直接存
         elif frame.ndim == 2:
-            # 灰度帧转伪RGB保存
             bgr = cv2.cvtColor(
                 frame.astype(np.uint8) if frame.dtype != np.uint8 else frame,
                 cv2.COLOR_GRAY2BGR,
@@ -451,6 +452,8 @@ class App(tk.Tk):
         self._gain_var = tk.IntVar(value=DEFAULT_GAIN)
         self._imgtype_var = tk.StringVar(value=DEFAULT_IMG_TYPE)
         self._bin_var = tk.IntVar(value=1)
+        self._wb_r_var = tk.IntVar(value=DEFAULT_WB_R)
+        self._wb_b_var = tk.IntVar(value=DEFAULT_WB_B)
         self._roi_x_var = tk.IntVar(value=DEFAULT_ROI_X)
         self._roi_y_var = tk.IntVar(value=DEFAULT_ROI_Y)
         self._roi_w_var = tk.IntVar(value=DEFAULT_ROI_W)
@@ -687,6 +690,30 @@ class App(tk.Tk):
         )
         self._cb_bin.pack(side="left", padx=(0, 8))
         self._cb_bin.bind("<<ComboboxSelected>>", lambda _: self._apply_cam_params())
+
+        ttk.Label(r1, text="WB_R:").pack(side="left", padx=(8, 0))
+        wb_r_spin = ttk.Spinbox(
+            r1,
+            from_=1,
+            to=99,
+            width=3,
+            textvariable=self._wb_r_var,
+            command=self._apply_wb,
+        )
+        wb_r_spin.pack(side="left", padx=(0, 4))
+        wb_r_spin.bind("<Return>", lambda _: self._apply_wb())
+
+        ttk.Label(r1, text="WB_B:").pack(side="left")
+        wb_b_spin = ttk.Spinbox(
+            r1,
+            from_=1,
+            to=99,
+            width=3,
+            textvariable=self._wb_b_var,
+            command=self._apply_wb,
+        )
+        wb_b_spin.pack(side="left", padx=(0, 4))
+        wb_b_spin.bind("<Return>", lambda _: self._apply_wb())
 
         ttk.Label(r1, textvariable=self._fps_var).pack(side="right")
 
@@ -1013,13 +1040,15 @@ class App(tk.Tk):
                 img = Image.fromarray(small, mode="L")
                 gray_for_hist = disp
             elif frame.ndim == 3 and frame.shape[2] == 3:
+                # zwoasi RGB24 模式实际返回 BGR 顺序
                 iw, ih = frame.shape[1], frame.shape[0]
                 scale = min(cw / iw, ch / ih)
                 nw, nh = int(iw * scale), int(ih * scale)
                 small = cv2.resize(frame, (nw, nh), interpolation=cv2.INTER_NEAREST)
-                img = Image.fromarray(small, mode="RGB")
-                # 灰度用 cv2（比 np.dot 快很多）
-                gray_for_hist = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                # BGR → RGB 给 PIL 显示
+                img = Image.fromarray(small[:, :, ::-1], mode="RGB")
+                # 灰度直方图用 BGR2GRAY
+                gray_for_hist = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             else:
                 return
 
@@ -1105,6 +1134,19 @@ class App(tk.Tk):
         self.cam_mgr.set_image_type(self._imgtype_var.get())
         # Bin + ROI 一起设
         self._apply_roi()
+
+    def _apply_wb(self):
+        """应用白平衡 WB_R / WB_B"""
+        if self.cam_mgr.is_open and self.cam_mgr.camera:
+            try:
+                self.cam_mgr.camera.set_control_value(
+                    asi.ASI_WB_R, self._wb_r_var.get()
+                )
+                self.cam_mgr.camera.set_control_value(
+                    asi.ASI_WB_B, self._wb_b_var.get()
+                )
+            except Exception:
+                pass
 
     def _on_roi_changed(self):
         """ROI spinbox 变化时的 debounce：300ms 内无新变化才实际应用"""
@@ -1207,16 +1249,14 @@ class App(tk.Tk):
     def _run_auto_exposure(self):
         """
         自动曝光（基于真 RAW16）：
-        每次迭代短暂停流 snap 一帧 RAW16 分析，然后恢复流继续预览。
+        用第95百分位值（即前5%最亮像素的下界）作为亮度指标。
+        目标: P95 落在 RAW_TARGET 附近。
 
         RAW16 范围 0~65535。换算: raw = 8bit_val / 255 * 65535
-        目标: max ≈ 180@8bit → 46260@16bit, 范围 160~200@8bit → 41120~51400@16bit
         """
-        RAW_MAX_LO = 41120  # 160 @8bit → 160/255*65535
-        RAW_MAX_HI = 51400  # 200 @8bit → 200/255*65535
-        RAW_TARGET = 46260  # 180 @8bit → 180/255*65535
-        RAW_OVEREXP = 60395  # 235 @8bit → 235/255*65535
-        max_overexp_pct = self._overexp_pct_var.get() / 100.0
+        RAW_P95_LO = 41120  # 160 @8bit
+        RAW_P95_HI = 51400  # 200 @8bit
+        RAW_P95_TARGET = 46260  # 180 @8bit
         max_iter = 10
         min_exp = 32
         max_exp = 2000000
@@ -1233,45 +1273,45 @@ class App(tk.Tk):
             if raw is None:
                 continue
 
+            # 第95百分位：前5%最亮像素的下界
+            p95 = int(np.percentile(raw, 95))
             v_max = int(raw.max())
-            v_mean = float(raw.mean())
-            overexp = np.count_nonzero(raw >= RAW_OVEREXP) / raw.size
-            max8 = v_max * 255 / 65535  # 16bit → 8bit等效
+            p95_8b = p95 * 255 / 65535
+            max_8b = v_max * 255 / 65535
 
-            status = f"#{i+1} exp={cur_exp} max={v_max}({max8:.0f}@8b) 过曝={overexp*100:.1f}%"
+            status = f"#{i+1} exp={cur_exp} P95={p95}({p95_8b:.0f}@8b) max={v_max}({max_8b:.0f}@8b)"
             self.after(0, self._autoexp_status_var.set, status)
 
-            # 收敛
-            if RAW_MAX_LO <= v_max <= RAW_MAX_HI and overexp <= max_overexp_pct:
+            # 收敛：P95 落在目标范围内
+            if RAW_P95_LO <= p95 <= RAW_P95_HI:
                 self.after(
                     0,
                     self._autoexp_status_var.set,
-                    f"完成! exp={cur_exp} max={v_max}({max8:.0f}@8b) 过曝={overexp*100:.1f}%",
+                    f"完成! exp={cur_exp} P95={p95}({p95_8b:.0f}@8b)",
                 )
                 return
 
-            # 一步估算
-            if v_max <= 10:
+            # 一步估算: new_exp = cur_exp * target / p95
+            if p95 <= 10:
                 new_exp = cur_exp * 8
-            elif v_max >= 65000 and overexp > max_overexp_pct:
-                if v_mean > 0:
-                    new_exp = int(cur_exp * (RAW_TARGET * 0.6) / v_mean)
-                else:
-                    new_exp = cur_exp // 4
             else:
-                new_exp = int(cur_exp * RAW_TARGET / max(v_max, 1))
+                new_exp = int(cur_exp * RAW_P95_TARGET / max(p95, 1))
 
             new_exp = max(min_exp, min(new_exp, max_exp))
 
             if new_exp == cur_exp:
-                new_exp = cur_exp + (100 if v_max < RAW_TARGET else -100)
+                new_exp = cur_exp + (100 if p95 < RAW_P95_TARGET else -100)
                 new_exp = max(min_exp, min(new_exp, max_exp))
 
             cur_exp = new_exp
             self.cam_mgr.set_exposure(cur_exp)
             self.after(0, self._exp_var.set, cur_exp)
 
-        self.after(0, self._autoexp_status_var.set, f"结束 exp={cur_exp} max={v_max}")
+        self.after(
+            0,
+            self._autoexp_status_var.set,
+            f"结束 exp={cur_exp} P95={p95}({p95_8b:.0f}@8b)",
+        )
 
     # ─────────────────────────────────────
     #  AutoNext：自动循环 LED → 等串口回传 → 自动曝光 → 保存
