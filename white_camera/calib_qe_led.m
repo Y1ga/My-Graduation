@@ -5,8 +5,6 @@ clc;
 white_led_spectra = load_mat("white_led_spectra", "gt");
 qe585_response = load_mat("qe585_response", "gt");
 %% 
-% plot_A(qe585_response)
-%% 
 folder_path ="./white_camera/data/bench_20260307_203003/";
 imgs = read_images(folder_path, true);
 img = squeeze(imgs(3, :, :));
@@ -65,4 +63,3 @@ for c = 1:3
     grid on;
 end
 sgtitle('QE 验证: Predicted vs Measured');
-%% 
