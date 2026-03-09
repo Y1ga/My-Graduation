@@ -372,6 +372,25 @@ class CameraManager:
             if was_streaming:
                 self.start_video()
 
+    def snap_raw16(self) -> np.ndarray:
+        """停流→切RAW16→snap一帧返回numpy数组→切回原格式→恢复流"""
+        if not self.camera:
+            raise RuntimeError("相机未打开")
+
+        was_streaming = self._streaming
+        if was_streaming:
+            self.stop_video()
+
+        try:
+            self.camera.set_image_type(asi.ASI_IMG_RAW16)
+            raw = self.camera.capture()  # 返回 numpy array (H, W) uint16
+            return raw
+        finally:
+            orig = getattr(self, "_current_img_type", DEFAULT_IMG_TYPE)
+            self.camera.set_image_type(IMG_TYPE_MAP.get(orig, asi.ASI_IMG_RGB24))
+            if was_streaming:
+                self.start_video()
+
     def capture_save_rgb(self, path: str):
         """保存RGB彩色图"""
         import cv2
@@ -1187,82 +1206,65 @@ class App(tk.Tk):
 
     def _run_auto_exposure(self):
         """
-        自动曝光：目标让最高灰度值落在 240~254，过曝 0~5% 即可。
-        策略：用当前 max 值一步估算目标曝光 = cur_exp * 目标max / 当前max。
-        通常 2~4 次迭代即可收敛。
-        """
-        import cv2
+        自动曝光（基于真 RAW16）：
+        每次迭代短暂停流 snap 一帧 RAW16 分析，然后恢复流继续预览。
 
-        TARGET_MAX_LO = 220
-        TARGET_MAX_HI = 254
-        TARGET_MAX = 235  # 瞄准的 max 值
-        max_overexp_pct = self._overexp_pct_var.get() / 100.0  # 0.05
-        thresh = self._overexp_thresh_var.get()  # 250
+        RAW16 范围 0~65535。换算: raw = 8bit_val / 255 * 65535
+        目标: max ≈ 180@8bit → 46260@16bit, 范围 160~200@8bit → 41120~51400@16bit
+        """
+        RAW_MAX_LO = 41120  # 160 @8bit → 160/255*65535
+        RAW_MAX_HI = 51400  # 200 @8bit → 200/255*65535
+        RAW_TARGET = 46260  # 180 @8bit → 180/255*65535
+        RAW_OVEREXP = 60395  # 235 @8bit → 235/255*65535
+        max_overexp_pct = self._overexp_pct_var.get() / 100.0
         max_iter = 10
         min_exp = 32
         max_exp = 2000000
 
-        def wait_new_frame():
-            """等 2 帧刷新，比之前的 3 帧快"""
-            old = self._frame_count
-            for _ in range(30):  # 最多 3s
-                time.sleep(0.1)
-                if self._frame_count >= old + 2:
-                    break
-            return self.cam_mgr._last_frame
-
         cur_exp = self._exp_var.get()
 
         for i in range(max_iter):
-            frame = wait_new_frame()
-            if frame is None:
+            try:
+                raw = self.cam_mgr.snap_raw16()
+            except Exception as ex:
+                self.after(0, self._autoexp_status_var.set, f"snap失败: {ex}")
+                return
+
+            if raw is None:
                 continue
 
-            # 转灰度
-            if frame.ndim == 3 and frame.shape[2] == 3:
-                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-            elif frame.ndim == 2:
-                gray = (
-                    (frame >> 8).astype(np.uint8) if frame.dtype == np.uint16 else frame
-                )
-            else:
-                break
+            v_max = int(raw.max())
+            v_mean = float(raw.mean())
+            overexp = np.count_nonzero(raw >= RAW_OVEREXP) / raw.size
+            max8 = v_max * 255 / 65535  # 16bit → 8bit等效
 
-            v_max = int(gray.max())
-            v_mean = float(gray.mean())
-            overexp = np.count_nonzero(gray >= thresh) / gray.size
-
-            status = f"#{i+1} exp={cur_exp} max={v_max} mean={v_mean:.0f} 过曝={overexp*100:.1f}%"
+            status = f"#{i+1} exp={cur_exp} max={v_max}({max8:.0f}@8b) 过曝={overexp*100:.1f}%"
             self.after(0, self._autoexp_status_var.set, status)
 
-            # ── 收敛判断（宽松）──
-            if TARGET_MAX_LO <= v_max <= TARGET_MAX_HI and overexp <= max_overexp_pct:
+            # 收敛
+            if RAW_MAX_LO <= v_max <= RAW_MAX_HI and overexp <= max_overexp_pct:
                 self.after(
                     0,
                     self._autoexp_status_var.set,
-                    f"完成! exp={cur_exp} max={v_max} 过曝={overexp*100:.1f}%",
+                    f"完成! exp={cur_exp} max={v_max}({max8:.0f}@8b) 过曝={overexp*100:.1f}%",
                 )
                 return
 
-            # ── 一步估算新曝光 ──
-            if v_max <= 1:
-                # 全黑，大幅增加
+            # 一步估算
+            if v_max <= 10:
                 new_exp = cur_exp * 8
-            elif v_max >= 255 and overexp > max_overexp_pct:
-                # 过饱和，用均值来估算降多少
+            elif v_max >= 65000 and overexp > max_overexp_pct:
                 if v_mean > 0:
-                    new_exp = int(cur_exp * (TARGET_MAX * 0.6) / v_mean)
+                    new_exp = int(cur_exp * (RAW_TARGET * 0.6) / v_mean)
                 else:
                     new_exp = cur_exp // 4
             else:
-                # 正常情况：线性比例 new_exp = cur_exp * TARGET_MAX / v_max
-                new_exp = int(cur_exp * TARGET_MAX / max(v_max, 1))
+                new_exp = int(cur_exp * RAW_TARGET / max(v_max, 1))
 
             new_exp = max(min_exp, min(new_exp, max_exp))
 
-            # 防止原地踏步
             if new_exp == cur_exp:
-                new_exp = cur_exp + (100 if v_max < TARGET_MAX else -100)
+                new_exp = cur_exp + (100 if v_max < RAW_TARGET else -100)
                 new_exp = max(min_exp, min(new_exp, max_exp))
 
             cur_exp = new_exp
