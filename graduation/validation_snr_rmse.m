@@ -7,7 +7,7 @@
 clear; clc; close all;
 
 %% 选择模式
-MODE = 'B';
+MODE = 'A';
 
 %% 加载数据
 A0 = load_mat("led_0711", "gt");
