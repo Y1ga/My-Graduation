@@ -49,7 +49,7 @@ except Exception:
 
 NUM_LEDS = 16
 DEFAULT_BRIGHTNESS = 100
-NEXT_LED_CYCLE = [7, 10, 11]  # LED8, LED11, LED12
+NEXT_LED_CYCLE = list(range(16))  # LED1~LED16 (0-based: 0~15)
 
 # 相机默认参数
 DEFAULT_EXPOSURE_US = 10000  # 10ms

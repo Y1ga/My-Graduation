@@ -7,7 +7,7 @@
 clear; clc; close all;
 
 %% 选择模式
-MODE = 'A';
+MODE = '1';
 
 %% 加载数据
 A0 = load_mat("led_0711", "gt");
@@ -371,7 +371,124 @@ elseif strcmp(MODE, 'C') || strcmpi(MODE, 'c')
     fprintf('Conclusion: Noise impact ranking (most to least harmful):\n');
     fprintf('  1. In-band > 2. AWGN > 3. 100Hz > 4. SMPS > 5. PWM > 6. DC\n');
     fprintf('============================================================\n');
-
+%% ==================== MODE 1: AWGN ====================
+elseif strcmp(MODE, '1')
+    mode_name = 'AWGN Noise Only';
+    
+    snr_list = [-20, -10, 0, 10, 20, 30, 40];
+    n_test = length(snr_list);
+    
+    rmse_fdm = zeros(n_test, 1);
+    rmse_tdm = zeros(n_test, 1);
+    yerr_fdm = zeros(n_test, 1);
+    yerr_tdm = zeros(n_test, 1);
+    
+    % TDM参数
+    N_LED = length(working_leds);
+    Fs = 10e6;
+    T_total = 100e-6;
+    T_slot = T_total / N_LED;
+    N_slot = round(Fs * T_slot);
+    N_total = N_LED * N_slot;
+    
+    % 生成无噪声FDM信号，获取信号功率作为噪声基准
+    [v_fdm_clean, ~, params_clean] = fdm_generate_signal(y_theory, ...
+        'FreqMode', 'auto', 'SNR_dB', Inf, 'Seed', 42, 'Waveform', 'square');
+    P_signal = var(v_fdm_clean);
+    
+    fprintf('Running simulations for MODE 1 (AWGN)...\n');
+    
+    for i = 1:n_test
+        noise_var = P_signal / (10^(snr_list(i)/10));
+        noise_std = sqrt(noise_var);
+        
+        %% FDM
+        [v_fdm, ~, params_fdm] = fdm_generate_signal(y_theory, ...
+            'FreqMode', 'auto', 'SNR_dB', snr_list(i), 'Seed', 42, 'Waveform', 'square');
+        y_fdm = fdm_demodulate(v_fdm, params_fdm);
+        yerr_fdm(i) = norm(y_fdm - y_theory) / norm(y_theory) * 100;
+        x_fdm = fdm_reconstruct(y_fdm, A0_working, 'Method', 'tv');
+        rmse_fdm(i) = fdm_metrics(x_gt, x_fdm);
+        
+        %% TDM
+        % 生成TDM信号
+        t_tdm = (0:N_total-1) / Fs;
+        v_tdm_clean = zeros(1, N_total);
+        for k = 1:N_LED
+            idx_s = (k-1)*N_slot + 1;
+            idx_e = k*N_slot;
+            v_tdm_clean(idx_s:idx_e) = y_theory(k);
+        end
+        
+        % 加相同功率的AWGN
+        rng(42);
+        v_tdm = v_tdm_clean + noise_std * randn(1, N_total);
+        
+        % TDM解调：每个时间槽取平均
+        y_tdm = zeros(N_LED, 1);
+        for k = 1:N_LED
+            idx_s = (k-1)*N_slot + 1;
+            idx_e = k*N_slot;
+            y_tdm(k) = mean(v_tdm(idx_s:idx_e));
+        end
+        yerr_tdm(i) = norm(y_tdm - y_theory) / norm(y_theory) * 100;
+        x_tdm = fdm_reconstruct(y_tdm, A0_working, 'Method', 'tv');
+        rmse_tdm(i) = fdm_metrics(x_gt, x_tdm);
+    end
+    
+    fprintf('Simulations complete!\n\n');
+    
+    % 打印结果
+    fprintf('============================================================\n');
+    fprintf('MODE 1: %s\n', mode_name);
+    fprintf('============================================================\n');
+    fprintf('%8s %12s %12s %12s %12s\n', 'SNR(dB)', 'FDM_RMSE', 'TDM_RMSE', 'FDM_Yerr%', 'TDM_Yerr%');
+    fprintf('%s\n', repmat('-', 1, 58));
+    for i = 1:n_test
+        fprintf('%8d %12.4f %12.4f %12.2f %12.2f\n', ...
+            snr_list(i), rmse_fdm(i), rmse_tdm(i), yerr_fdm(i), yerr_tdm(i));
+    end
+    
+    % 绘图
+    FONTSIZE = 18;
+    FONTSIZE_LEGEND = FONTSIZE - 4;
+    FONTSIZE_TICK = FONTSIZE - 2;
+    LINE_WIDTH = 2;
+    
+    color_fdm = [0.20, 0.45, 0.70];
+    color_tdm = [0.70, 0.35, 0.25];
+    
+    fig = figure('Position', [100, 100, FIG_WIDTH, FIG_HEIGHT], 'Color', 'w');
+    
+    yyaxis left;
+    hold on; box on;
+    h1 = plot(snr_list, rmse_fdm, 'o-', 'LineWidth', LINE_WIDTH, 'MarkerSize', 7, ...
+        'Color', color_fdm, 'MarkerFaceColor', color_fdm);
+    h2 = plot(snr_list, rmse_tdm, 's-', 'LineWidth', LINE_WIDTH, 'MarkerSize', 7, ...
+        'Color', color_tdm, 'MarkerFaceColor', color_tdm);
+    ylabel('RMSE', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+    set(gca, 'YColor', 'k');
+    
+    yyaxis right;
+    h3 = plot(snr_list, yerr_fdm, 'o--', 'LineWidth', 1.5, 'MarkerSize', 6, ...
+        'Color', color_fdm, 'MarkerFaceColor', 'none');
+    h4 = plot(snr_list, yerr_tdm, 's--', 'LineWidth', 1.5, 'MarkerSize', 6, ...
+        'Color', color_tdm, 'MarkerFaceColor', 'none');
+    ylabel('Demodulation Error (%)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+    set(gca, 'YColor', 'k');
+    
+    xlabel('SNR (dB)', 'FontSize', FONTSIZE, 'FontName', 'Arial');
+    leg = legend([h1, h2, h3, h4], ...
+        {'FDM (RMSE)', 'TDM (RMSE)', 'FDM (Demod.)', 'TDM (Demod.)'}, ...
+        'Location', 'northeast', 'FontSize', FONTSIZE_LEGEND);
+    leg.Box = 'off';
+    set(gca, 'FontSize', FONTSIZE_TICK, 'FontName', 'Arial', 'LineWidth', 1.0);
+    xlim([min(snr_list)-5, max(snr_list)+5]);
+    
+    savename = 'fig_awgn_fdm_vs_tdm';
+    print(gcf, savename, '-dpng', '-r300');
+    print(gcf, savename, '-depsc', '-r300');
+    fprintf('\nSaved: %s.png and %s.eps\n', savename, savename);
 else
     error('Unknown MODE: %s. Use ''A'', ''B'', or ''C''.', num2str(MODE));
 end
