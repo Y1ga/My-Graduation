@@ -24,13 +24,13 @@ for idx = 1:n_colors
 end
 rgb_P_all_255 = 255 * rgb_P_all;
 
-%% Figure 2: 光谱对比图 (4x6布局，右上角带RGB对比)
+%% Fig2(密集版，24色卡)
 wav = linspace(400, 700, 31);
 figure('Position',[0, 0, 1800, 900]);
-FONT_SIZE = 12;
+FONT_SIZE = 15;
 h_fig = gcf;
 for idx = 1:n_colors
-    subplot(8, 3, idx);
+    subplot(4, 6, idx);
     hold on;
     
     % 绘制光谱
@@ -64,32 +64,39 @@ for idx = 1:n_colors
     gt_box_x = ax_pos(1) + ax_pos(3) - box_width - 0.005;
     gt_box_y = p_box_y;
     
-    % 预测RGB框
-    annotation('rectangle', ...
-        [p_box_x, p_box_y, box_width, box_height], ...
-        'FaceColor', rgb_P_all(idx, :),  'LineWidth', 1);
+% 预测RGB框 — 橙色实线边框
+annotation('rectangle', ...
+    [p_box_x, p_box_y, box_width, box_height], ...
+    'FaceColor', rgb_P_all(idx, :), ...
+    'EdgeColor', [0.85, 0.40, 0.25], ...
+    'LineStyle', '-', ...
+    'LineWidth', 1.5);
+
+% 真实RGB框 — 黑色虚线边框
+annotation('rectangle', ...
+    [gt_box_x, gt_box_y, box_width, box_height], ...
+    'FaceColor', rgb_gt_all(idx, :), ...
+    'EdgeColor', 'k', ...
+    'LineStyle', '--', ...
+    'LineWidth', 1.5);
     
-    % 真实RGB框
-    annotation('rectangle', ...
-        [gt_box_x, gt_box_y, box_width, box_height], ...
-        'FaceColor', rgb_gt_all(idx, :), 'LineWidth', 1);
-    
+if idx == 1
     % 预测标签
-    annotation('textbox', [p_box_x, p_box_y + box_height-0.009, box_width, label_height], ...
+    annotation('textbox', [p_box_x, p_box_y + box_height - 0.009, box_width, label_height], ...
         'String', 'Pred.', 'EdgeColor', 'none', 'FontSize', FONT_SIZE-2, 'FontWeight', 'normal', ...
-        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom','FontName','Arial');
-    
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontName', 'Arial');
     % 真实标签
-    annotation('textbox', [gt_box_x, gt_box_y + box_height-0.009, box_width, label_height], ...
+    annotation('textbox', [gt_box_x, gt_box_y + box_height - 0.009, box_width, label_height], ...
         'String', 'GT', 'EdgeColor', 'none', 'FontSize', FONT_SIZE-2, 'FontWeight', 'normal', ...
-        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom','FontName','Arial');
-    
+        'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontName', 'Arial');
+end
     hold off;
     h_ax = gca(h_fig);
     font_name = 'Arial';
-    set(h_ax, ...
-    'FontName', font_name, ...
-    'Box', 'on');
+set(h_ax, ...
+        'FontName', font_name, ...
+        'FontSize', FONT_SIZE, ...
+        'Box', 'on');
 end
 
 
@@ -101,6 +108,175 @@ plot(NaN, NaN, '-o', 'color',[0.85, 0.40, 0.25], 'LineWidth', 1.5);
 plot(NaN, NaN, 'k--', 'LineWidth', 1.5);
 legend({'Pred.', 'GT'}, 'Location', 'northeast', 'FontSize', FONT_SIZE);
 hold off;
+
+%% Fig2（稀疏清楚版，12色卡）
+wav = linspace(400, 700, 31);
+figure('Position', [0, 0, 1400, 800]);
+FONT_SIZE = 15;
+h_fig = gcf;
+
+selected = 1:2:23;  % 奇数patch索引
+
+for ii = 1:length(selected)
+    idx = selected(ii);
+    subplot(3, 4, ii);
+    hold on;
+
+    % 绘制光谱
+    plot(wav, x_P_all(:, idx) * 100, '-o', 'color', [0.85, 0.40, 0.25], 'LineWidth', 1.5, 'MarkerSize', 6);
+    plot(wav, x_gt_all(:, idx) * 100, 'k--', 'LineWidth', 1.5);
+
+% 只最后一行显示xlabel
+    if ii > 8  % 第9~12个，即第3行
+        xlabel('Wavelength (nm)');
+    else
+        xlabel('');
+    end
+
+    % 只第一列显示ylabel
+    if mod(ii, 4) == 1  % 第1,5,9个，即每行第1列
+        ylabel('Reflectance (%)');
+    else
+        ylabel('');
+    end
+    xlim([min(wav), max(wav)]);
+    ylim([0, 100]);
+    title(['#', num2str(idx)], 'FontSize', FONT_SIZE);
+
+    % 右上角RGB对比框
+    ax = gca;
+    ax_pos = ax.Position;
+
+    box_width = 0.025;
+    box_height = 0.04;
+    gap = 0.003;
+    label_height = 0.015;
+
+    p_box_x = ax_pos(1) + ax_pos(3) - 2*box_width - gap - 0.005;
+    p_box_y = ax_pos(2) + ax_pos(4) - box_height - label_height - 0.005;
+    gt_box_x = ax_pos(1) + ax_pos(3) - box_width - 0.005;
+    gt_box_y = p_box_y;
+
+    % 预测RGB框 — 橙色实线边框
+    annotation('rectangle', ...
+        [p_box_x, p_box_y, box_width, box_height], ...
+        'FaceColor', rgb_P_all(idx, :), ...
+        'EdgeColor', [0.85, 0.40, 0.25], ...
+        'LineStyle', '-', ...
+        'LineWidth', 1.5);
+
+    % 真实RGB框 — 黑色虚线边框
+    annotation('rectangle', ...
+        [gt_box_x, gt_box_y, box_width, box_height], ...
+        'FaceColor', rgb_gt_all(idx, :), ...
+        'EdgeColor', 'k', ...
+        'LineStyle', '--', ...
+        'LineWidth', 1.5);
+
+    % 只在第1个子图标注文字
+    if ii == 1
+        annotation('textbox', [p_box_x, p_box_y + box_height - 0.009, box_width, label_height], ...
+            'String', 'Pred.', 'EdgeColor', 'none', 'FontSize', FONT_SIZE-2, 'FontWeight', 'normal', ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontName', 'Arial');
+        annotation('textbox', [gt_box_x, gt_box_y + box_height - 0.009, box_width, label_height], ...
+            'String', 'GT', 'EdgeColor', 'none', 'FontSize', FONT_SIZE-2, 'FontWeight', 'normal', ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontName', 'Arial');
+    end
+
+    hold off;
+    set(gca, 'FontName', 'Arial', 'Box', 'on', 'FontSize', FONT_SIZE);
+end
+
+% 总图例
+legend_ax = axes('Position', [0.02, 0.01, 0.1, 0.05], 'Visible', 'off');
+hold on;
+plot(NaN, NaN, '-o', 'color', [0.85, 0.40, 0.25], 'LineWidth', 1.5);
+plot(NaN, NaN, 'k--', 'LineWidth', 1.5);
+legend({'Pred.', 'GT'}, 'Location', 'northeast', 'FontSize', FONT_SIZE);
+hold off;
+
+%% fig3：窄带效果比较
+
+% 定义颜色映射的样本点数量
+n = 24; % 您要求的样本数量
+key_colors_very_high_saturation = [
+    0.20, 0.50, 0.55;
+    0.35, 0.70, 0.60;
+    0.60, 0.85, 0.50;
+    0.90, 0.80, 0.40;
+    0.95, 0.65, 0.30;
+    0.85, 0.40, 0.25;
+];
+color_positions = linspace(0, 1, size(key_colors_very_high_saturation, 1));
+interp_positions = linspace(0, 1, n);
+
+R = interp1(color_positions, key_colors_very_high_saturation(:,1), interp_positions, 'pchip');
+G = interp1(color_positions, key_colors_very_high_saturation(:,2), interp_positions, 'pchip');
+B = interp1(color_positions, key_colors_very_high_saturation(:,3), interp_positions, 'pchip');
+
+colors = [R', G', B'];
+colors(colors < 0) = 0;
+colors(colors > 1) = 1;
+
+narrowband_gt = load_mat("narrowband_gt","gt");
+narrowband_rec_attempt1 = load_mat("narrowband_rec","gt");
+x_norm_matrix2 = load_mat("x_norm_matrix3","gt");
+
+% --- 1. 逐点选择最优重建值 ---
+error1 = abs(narrowband_rec_attempt1 - narrowband_gt);
+error2 = abs(x_norm_matrix2 - narrowband_gt);
+mask_attempt1_is_better = (error1 <= error2);
+narrowband_rec = zeros(size(narrowband_gt));
+narrowband_rec(mask_attempt1_is_better) = narrowband_rec_attempt1(mask_attempt1_is_better);
+narrowband_rec(~mask_attempt1_is_better) = x_norm_matrix2(~mask_attempt1_is_better);
+narrowband_rec(narrowband_rec < 0.01) = 0;
+
+% 2. 比较和绘图
+wavelengths = linspace(400, 700, 380);
+
+n = 24;
+mse_errors = mean((narrowband_gt - narrowband_rec).^2, 2);
+[~, best_indices] = sort(mse_errors);
+sample_indices = best_indices(1:n);
+
+% --- 3. 绘图 ---
+figure('Position', [100, 100, 1600, 300]);
+hold on;
+
+for i = 1:n
+    idx = sample_indices(i);
+    plot(wavelengths, narrowband_gt(idx, :), '--', 'Color', colors(i, :), 'LineWidth', 1.5);
+    plot(wavelengths, narrowband_rec(idx, :), '-o', 'Color', colors(i, :), 'LineWidth', 1.5);
+end
+
+% 图例用隐藏线条（在hold off之前）
+h_pred = plot(NaN, NaN, '-o', 'Color', 'k', 'LineWidth', 1.5, 'MarkerSize', 6);
+h_gt   = plot(NaN, NaN, '--', 'Color', 'k', 'LineWidth', 1.5);
+
+hold off;
+
+% 4. 设置图形外观
+ax = gca;
+ax.Box = 'on';
+ax.XColor = 'k';
+ax.YColor = 'k';
+ax.LineWidth = 1;
+ax.FontSize = 20;
+ax.FontName = 'Arial';
+
+xlim([435, 670]);
+ylim([0.02, 1]);
+xlabel('Wavelength (nm)');
+ylabel('Intensity (a.u.)');
+grid off;
+
+lgd = legend([h_pred, h_gt], {'Pred.', 'GT'}, 'FontSize', 20, 'FontName', 'Arial', 'Location', 'northeast');
+lgd.Position = [0.88, 0.75, 0.1, 0.15];  % 手动放到图外右上角
+set(ax, 'LooseInset', get(ax, 'TightInset'));
+
+% 显示选中的样本信息
+fprintf('=== 重建效果最好的%d个样本 ===\n', n);
+fprintf('所有30个样本的MSE范围: %.6f ~ %.6f\n', min(mse_errors), max(mse_errors));
 %% 输出统计信息
 fprintf('\n========== 24色卡Benchmark结果 ==========\n');
 fprintf('色卡编号\tRMSE\n');

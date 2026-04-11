@@ -7,7 +7,7 @@ idx = 15;
 x = colorchecker(:, idx);
 
 %% 画时域图
-path = "./data/PD-01-18/I/新建文件";
+path = "W:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\data\PD-01-18/I/新建文件";
 duration = 100e-5;
 % 简洁调用：截取前20%，降采样10倍
 file_signal_idx = 2;
