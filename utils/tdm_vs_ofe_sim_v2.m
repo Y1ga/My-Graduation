@@ -1,13 +1,29 @@
-function tdm_vs_ofe_sim_v2(MODE)
+function tdm_vs_ofe_sim_v2(MODE, varargin)
 %% TDM vs OFE 对比仿真 (重构版)
 % MODE 1: AWGN噪声
 % MODE 2: 带内噪声 (可选 gaussian 或 multitone)
 % MODE 3: 多音噪声 (不同频率间隔)
 % MODE 4: 单频100kHz噪声
 % MODE 5: 时域信号对比
+%
+% 可选参数:
+%   'TDMChannelTime' - TDM单通道采样时间(s)。默认留空，此时保持原始
+%                      口径：TDM总采样时间为100 us，每通道约8.33 us。
+%                      例如设为100e-6，则12通道TDM总时长为1.2 ms，
+%                      与OFE每通道100 us的积分时间一致。
+%   'SaveSuffix'     - 输出文件名后缀，默认''，用于避免覆盖原始结果。
 if nargin < 1
     MODE = 2;
 end
+
+p_timing = inputParser;
+addParameter(p_timing, 'TDMChannelTime', [], ...
+    @(x) isempty(x) || (isnumeric(x) && isscalar(x) && isfinite(x) && x > 0));
+addParameter(p_timing, 'SaveSuffix', '', ...
+    @(x) ischar(x) || (isstring(x) && isscalar(x)));
+parse(p_timing, varargin{:});
+TDM_channel_time_override = p_timing.Results.TDMChannelTime;
+save_suffix = char(p_timing.Results.SaveSuffix);
 
 clc; close all;
 %% ==================== 全局配置 ====================
@@ -15,6 +31,7 @@ clc; close all;
 cfg = struct();
 cfg.DUAL_AXIS = true;       % true: 上下子图; false: 左右子图
 cfg.SHOW_GRID = false;
+cfg.SAVE_SUFFIX = save_suffix;
 
 % 带内噪声设置
 cfg.INBAND_NOISE_MODE = 'multitone';
@@ -80,8 +97,21 @@ y_norm = norm(y_theory);
 % 派生参数
 T_fdm = cfg.T_total;
 N_fdm = round(cfg.Fs * T_fdm);
-T_slot = cfg.T_total / N_LED;
+if isempty(TDM_channel_time_override)
+    % 向后兼容：原fig2.m仍是100 us总时长，12通道各约8.33 us
+    T_slot = cfg.T_total / N_LED;
+else
+    % 公平积分时间：由调用者指定TDM每个通道的采样时间
+    T_slot = TDM_channel_time_override;
+end
 N_slot = round(cfg.Fs * T_slot);
+
+if ~isempty(TDM_channel_time_override)
+    fprintf('Timing: OFE = %.2f us/channel (%.2f us total); ', ...
+        T_fdm*1e6, T_fdm*1e6);
+    fprintf('TDM = %.2f us/channel (%.2f us total, %d channels)\n', ...
+        N_slot/cfg.Fs*1e6, N_LED*N_slot/cfg.Fs*1e6, N_LED);
+end
 
 % 获取无噪声FDM信号和参数 (所有MODE共用)
 [v_fdm_clean, ~, params_clean] = fdm_generate_signal(y_theory, ...
@@ -153,7 +183,7 @@ function run_mode3_guardband()
     
     %% 仿真
     RMSE_fdm_mean = zeros(n_test, n_guard);
-    RMSE_tdm_all = zeros(n_test, cfg.N_trials, n_guard);  % 保留所有trial用于误差带
+    RMSE_tdm_all = zeros(n_test, cfg.N_trials, n_guard);  % 保留各guard band的trial结果
     
     for g = 1:n_guard
         f_noise = f_noise_all{g};
@@ -192,11 +222,9 @@ function run_mode3_guardband()
         RMSE_fdm_mean(:, g) = mean(RMSE_fdm, 2);
     end
     
-    %% TDM 合并: 三个Δf的均值 + min/max 误差带
+    %% TDM 合并: 三个Δf的均值
     RMSE_tdm_per_guard = squeeze(mean(RMSE_tdm_all, 2));  % [n_test x n_guard]
     RMSE_tdm_baseline = mean(RMSE_tdm_per_guard, 2);       % 三个Δf的平均
-    RMSE_tdm_lo = min(RMSE_tdm_per_guard, [], 2);
-    RMSE_tdm_hi = max(RMSE_tdm_per_guard, [], 2);
     
     %% 打印结果
     fprintf('\n%8s | %10s %10s %10s | %10s\n', ...
@@ -221,13 +249,7 @@ function run_mode3_guardband()
     fig = make_figure(sty.FIG_WIDTH_CM, sty.FIG_HEIGHT_CM);
     hold on; box on;
     
-    %% TDM 误差带 (灰色半透明区域)
-    fill_x = [snr_list, fliplr(snr_list)];
-    fill_y = [RMSE_tdm_hi', fliplr(RMSE_tdm_lo')];
-    h_fill = fill(fill_x, fill_y, color_tdm, ...
-        'FaceAlpha', 0.15, 'EdgeColor', 'none');
-    
-    %% TDM baseline (粗灰色虚线)
+    %% TDM baseline (粗灰色虚线，无阴影区域)
     h_tdm = plot(snr_list, RMSE_tdm_baseline, '--', ...
         'LineWidth', sty.LINE_WIDTH + 0.5, 'Color', color_tdm);
     
@@ -571,6 +593,7 @@ function add_legend(handles, labels)
 end
 
 function save_figure(savename)
+    savename = [savename cfg.SAVE_SUFFIX];
     print(gcf, savename, '-dpng', '-r300');
     print(gcf, savename, '-depsc', '-r300');
     fprintf('Saved: %s.png and %s.eps\n', savename, savename);

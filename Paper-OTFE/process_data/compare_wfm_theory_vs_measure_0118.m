@@ -6,6 +6,9 @@ colorchecker = load_mat("colorchecker_trans_0118", "gt");
 idx = 15;
 x = colorchecker(:, idx);
 %% 
+wav = linspace(400, 700, 31);
+plot(wav, A);
+%% 
 path = "./data/PD-01-18/J/";
 duration = 100e-5;
 k_A = read_rigol_wfm(path+"新建文件-1.wfm", 1e9, duration);

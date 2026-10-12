@@ -2,10 +2,11 @@
 clear;
 clc;
 %% fig4 a，时域信号图
-path = "W:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\data\PD-01-18/I/新建文件";
+path = "D:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\data\PD-01-18/I/新建文件";
 duration = 100e-5;
 % 简洁调用：截取前20%，降采样10倍
 file_signal_idx = 2;
+file_noise_idx = 28;
 fs = 1e9;
 duty_cycle = 10;
 downsampling_rate = 1000;
@@ -16,7 +17,7 @@ noise_path = path+num2str(file_noise_idx)+".wfm";
 [y_signal, ~, freq_detected] = read_rigol_wfm(signal_path, fs, duration);
 t = t * 1e6;
 figure(1);
-plot(t, v_signal,'Color', [0.85, 0.45, 0.40]);
+plot(t, v_noise,'Color', [0.85, 0.45, 0.40]);
 xlabel('Time (μs)');
 ylabel('Voltage (a.u.)');
 legend('SNR: 23.11dB');
@@ -26,7 +27,7 @@ h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend);
 ylim([0, max(v_noise)]);
 hold off;
 %%  fig4 b，时域信号图
-path = "W:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\data\PD-01-18/I/新建文件";
+path = "d:\Github\My-Repository\My-Graduation\Paper-OTFE\process_data\data\PD-01-18/I/新建文件";
 duration = 100e-5;
 % 简洁调用：截取前20%，降采样10倍
 file_signal_idx = 2;
@@ -52,7 +53,7 @@ h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend);
 %% fig4 c，信号-频域图
 do_plot = true;
 freq_max = 500;
-figure(3);
+% figure(3);
 fft_signal = plot_rigol_fft(signal_path, fs, duration, freq_max, do_plot, true);
 h_gt = gcf;
 FONT_SIZE = 16;
@@ -61,8 +62,41 @@ h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend,[0.85, 0.45, 0.
 %% fig4 d，噪声-频域图
 do_plot = true;
 freq_max = 500;
-figure(4);
+% figure(4);
 fft_noise = plot_rigol_fft(noise_path, fs, duration, freq_max, do_plot, false,true);
+h_gt = gcf;
+FONT_SIZE = 16;
+show_legend = false;
+h = set_fig(h_gt, 'Arial', FONT_SIZE, 1.5, [18, 15], show_legend);
+%% fig4 residual，残余频谱图
+% fft_noise 和 fft_signal 的第1列是频率，第2列是FFT幅值。
+% 频率列应当保留，只对幅值列作差。
+freq_residual = fft_noise(:, 1);
+mag_residual = fft_noise(:, 2) - fft_signal(:, 2);
+fft_residual = [freq_residual, mag_residual];
+
+figure;
+
+% 使用与 fft_noise 相同的双色绘图风格
+f_split = 380;                         % 分界频率 (kHz)
+color_lo = [0.30, 0.50, 0.70];        % 蓝灰色
+color_hi = [0.85, 0.45, 0.40];        % 红棕色
+
+idx_lo = freq_residual <= f_split;
+idx_hi = freq_residual >= f_split;
+
+plot(freq_residual(idx_lo), mag_residual(idx_lo), ...
+    'Color', color_lo, 'LineWidth', 1);
+hold on;
+plot(freq_residual(idx_hi), mag_residual(idx_hi), ...
+    'Color', color_hi, 'LineWidth', 1);
+
+xlabel('Frequency (kHz)');
+ylabel('Residual amplitude (a.u.)');
+xlim([0, freq_max]);
+grid on;
+hold off;
+
 h_gt = gcf;
 FONT_SIZE = 16;
 show_legend = false;
